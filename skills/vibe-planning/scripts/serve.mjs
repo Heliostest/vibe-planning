@@ -12,6 +12,7 @@ import { parseYaml } from './lib/yaml-mini.mjs';
 import { runSync, buildAiSyncPrompt } from './lib/sync-repo.mjs';
 import { promoteGhost } from './lib/promote-ghost.mjs';
 import { readLayout, mergeLayout } from './lib/layout-store.mjs';
+import { readDoneOrder, mergeDoneOrder } from './lib/done-order-store.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_ROOT = path.resolve(__dirname, '..');
@@ -209,6 +210,20 @@ function main() {
           return sendJson(res, 400, { ok: false, error: 'invalid JSON' });
         }
         mergeLayout(projectRoot, body && body.positions);
+        return sendJson(res, 200, { ok: true });
+      }
+
+      if (req.method === 'GET' && pathname === '/api/done-order') {
+        return sendJson(res, 200, readDoneOrder(projectRoot));
+      }
+
+      if (req.method === 'POST' && pathname === '/api/done-order') {
+        const raw = await readBody(req);
+        let body = {};
+        try { body = raw ? JSON.parse(raw) : {}; } catch {
+          return sendJson(res, 400, { ok: false, error: 'invalid JSON' });
+        }
+        mergeDoneOrder(projectRoot, body && body.order);
         return sendJson(res, 200, { ok: true });
       }
 

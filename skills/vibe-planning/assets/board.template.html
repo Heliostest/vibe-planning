@@ -251,6 +251,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   let syncPromptWritten = false;
   var layoutPositions = {};
   var layoutSaveTimer = null;
+  var doneOrderMap = {};
 
   const I18N = {
     'zh-CN': {
@@ -698,6 +699,95 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     return applied;
   }
 
+  function earliestDocDate(n) {
+    var best = '9999-99-99';
+    var docs = (n && n.docs) || [];
+    for (var i = 0; i < docs.length; i++) {
+      var m = String(docs[i]).match(/(\d{4}-\d{2}-\d{2})/);
+      if (m && m[1] < best) best = m[1];
+    }
+    return best;
+  }
+
+  function ensureDoneOrder(tree) {
+    var dirty = false;
+    var max = 0;
+    Object.keys(doneOrderMap).forEach(function (id) {
+      var v = Number(doneOrderMap[id]);
+      if (Number.isFinite(v) && v > max) max = v;
+    });
+    var missing = (tree.nodes || []).filter(function (n) {
+      return n && n.status === 'done' && n.id && doneOrderMap[n.id] == null;
+    });
+    missing.sort(function (a, b) {
+      var da = earliestDocDate(a);
+      var db = earliestDocDate(b);
+      if (da !== db) return da < db ? -1 : 1;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    for (var i = 0; i < missing.length; i++) {
+      max += 1;
+      doneOrderMap[missing[i].id] = max;
+      dirty = true;
+    }
+    if (dirty && liveEnabled()) {
+      fetch('/api/done-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order: doneOrderMap }),
+      }).catch(function (err) {
+        console.warn('[vibe-planning] saveDoneOrder failed', err);
+      });
+    }
+    return dirty;
+  }
+
+  async function fetchDoneOrder() {
+    try {
+      var res = await fetch('/api/done-order', { cache: 'no-store' });
+      if (!res.ok) return;
+      var json = await res.json();
+      var order = json && json.order && typeof json.order === 'object' ? json.order : {};
+      Object.keys(order).forEach(function (id) {
+        var n = Number(order[id]);
+        if (Number.isFinite(n) && n >= 1) doneOrderMap[id] = Math.floor(n);
+      });
+    } catch (e) {
+      console.warn('[vibe-planning] fetchDoneOrder failed', e);
+    }
+  }
+
+  function drawDoneBadges(ctx, net) {
+    if (!nodesDS || !ctx || !net) return;
+    var ids = nodesDS.getIds();
+    for (var i = 0; i < ids.length; i++) {
+      var node = nodesDS.get(ids[i]);
+      if (!node || !node._raw || node._raw.status !== 'done') continue;
+      var seq = node._doneSeq;
+      if (seq == null) continue;
+      var box = net.getBoundingBox(ids[i]);
+      if (!box) continue;
+      var r = 11;
+      var x = box.right + 2;
+      var y = box.top - 2;
+      var label = String(seq);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#facc15';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#0f1419';
+      ctx.stroke();
+      ctx.fillStyle = '#0f1419';
+      ctx.font = 'bold ' + (label.length > 2 ? 10 : 12) + 'px Segoe UI, PingFang SC, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x, y + 0.5);
+      ctx.restore();
+    }
+  }
+
   function wireNetworkToolbar(net) {
     net.on('hoverNode', function (p) {
       clearBlurTimer();
@@ -756,7 +846,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     });
     net.on('zoom', function () { positionToolbar(); });
     net.on('animationFinished', function () { positionToolbar(); });
-    net.on('afterDrawing', function () {
+    net.on('afterDrawing', function (ctx) {
+      drawDoneBadges(ctx, net);
       if (nodeToolbar.classList.contains('show') || activeToolbarId()) positionToolbar();
     });
   }
@@ -931,13 +1022,19 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       if (!n || !n.id || idSet.has(n.id)) return;
       idSet.add(n.id);
       const st = styleFor(n.status || 'idea', isGhost);
+      var doneSeq = (!isGhost && n.status === 'done' && doneOrderMap[n.id] != null)
+        ? doneOrderMap[n.id]
+        : null;
+      var tip = (isGhost ? '[ghost] ' : '') + (n.title || n.id) + '\n' + (n.status || '');
+      if (doneSeq != null) tip += '\n#' + doneSeq;
       nodesArr.push({
         id: n.id,
         label: n.title || n.id,
-        title: (isGhost ? '[ghost] ' : '') + (n.title || n.id) + '\n' + (n.status || ''),
+        title: tip,
         ...st,
         _raw: n,
         _ghost: !!isGhost,
+        _doneSeq: doneSeq,
       });
     }
 
@@ -1331,6 +1428,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       if (!res.ok) return;
       const tree = await res.json();
       await fetchLayout();
+      await fetchDoneOrder();
+      ensureDoneOrder(tree);
       renderTree(tree, opts || {});
     } catch { /* static file:// bootstrap */ }
   }

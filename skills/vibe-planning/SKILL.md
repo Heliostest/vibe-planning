@@ -22,6 +22,7 @@ disable-model-invocation: true
 - 项目目录：`<project>/docs/vibe-planning/`
 - 索引：`plan-tree.yaml`
 - 布局：`layout.json`（节点拖拽坐标，与 plan-tree 分离）
+- 完成序：`done-order.json`（done 节点右上角序号，按完成先后；缺省按 docs 日期启发补齐）
 - 看板：HTTP 实时服务（主路径）；可选静态 `board.html`
 - 同步提示：`sync-prompt.md`（「同步仓库」生成）
 - AI 同步提示：`ai-sync-prompt.md`（「AI 提示词」生成，可贴进 LLM 对话）
