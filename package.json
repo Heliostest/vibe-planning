@@ -1,0 +1,37 @@
+{
+  "name": "vibe-planning",
+  "version": "1.0.0",
+  "description": "Doc-backed dependency graph planning skill with live HTML board",
+  "type": "module",
+  "bin": {
+    "vibe-planning": "./bin/vibe-planning.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin",
+    "skills",
+    "install.sh",
+    "install.ps1",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "skills",
+    "agent-skills",
+    "cursor",
+    "claude-code",
+    "planning",
+    "dependency-graph"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Heliostest/vibe-planning.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Heliostest/vibe-planning/issues"
+  },
+  "homepage": "https://github.com/Heliostest/vibe-planning#readme"
+}

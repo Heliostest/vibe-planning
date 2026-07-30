@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>vibe-planning</title>
+<meta name="vp-board-rev" content="2026-07-30-layout-persist" />
+<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a222c;
+    --text: #e7ecf1;
+    --muted: #9aa7b5;
+    --border: #2c3846;
+    --st-idea-border: #3b82f6;
+    --st-proposed: #2563eb;
+    --st-planned: #7c3aed;
+    --st-doing: #d97706;
+    --st-done: #16a34a;
+    --st-deferred: #b45309;
+    --st-cancelled: #6b7280;
+    --ghost: #38bdf8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.45 "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  #app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+  header {
+    display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center;
+    padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+  header .meta { color: var(--muted); font-size: 13px; flex: 1; min-width: 120px; }
+  header .actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+  #btnSync {
+    background: #1d4ed8; border-color: #3b82f6; font-weight: 600;
+    padding: 8px 14px; white-space: nowrap;
+  }
+  #btnSync:hover { background: #2563eb; }
+  #btnAiPrompt { white-space: nowrap; }
+  #btnSettings { white-space: nowrap; }
+  #legend { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted);
+  }
+  .swatch {
+    width: 12px; height: 12px; border-radius: 2px; border: 2px solid transparent;
+  }
+  .swatch.idea { background: #0f1419; border-color: var(--st-idea-border); }
+  .swatch.proposed { background: var(--st-proposed); }
+  .swatch.planned { background: var(--st-planned); }
+  .swatch.doing { background: var(--st-doing); }
+  .swatch.done { background: var(--st-done); }
+  .swatch.deferred { background: transparent; border-style: dashed; border-color: var(--st-deferred); }
+  .swatch.cancelled { background: var(--st-cancelled); }
+  .swatch.ghost { background: transparent; border-style: dashed; border-color: var(--ghost);
+    box-shadow: 0 0 6px var(--ghost); }
+  main { display: grid; grid-template-columns: 1fr 280px; min-height: 0; }
+  #graph {
+    position: relative; min-height: 0;
+    background: radial-gradient(ellipse at 30% 20%, #17202a, var(--bg) 70%);
+  }
+  #nodeToolbar {
+    position: absolute; z-index: 10; display: none;
+    gap: 6px; align-items: center;
+    padding: 4px; border-radius: 999px;
+    background: rgba(26, 34, 44, 0.92);
+    border: 1px solid var(--border);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+    pointer-events: auto; white-space: nowrap;
+    transform: translate(-50%, -100%);
+  }
+  #nodeToolbar.show { display: inline-flex; }
+  #nodeToolbar button {
+    border-radius: 999px; padding: 5px 10px; font-size: 12px;
+    background: #243140; border-color: #3d4f63;
+  }
+  #nodeToolbar button:hover { background: #2d3d4f; border-color: #5b6f86; }
+  #nodeToolbar button.primary {
+    background: #1d4ed8; border-color: #3b82f6; font-weight: 600;
+  }
+  #nodeToolbar button.primary:hover { background: #2563eb; }
+  aside {
+    border-left: 1px solid var(--border); background: var(--panel);
+    padding: 14px; overflow: auto; display: flex; flex-direction: column; gap: 12px;
+  }
+  aside h2 { margin: 0; font-size: 14px; }
+  aside .empty { color: var(--muted); }
+  aside .field { font-size: 13px; }
+  aside .field b { color: var(--muted); font-weight: 500; display: block; margin-bottom: 2px; }
+  aside ul { margin: 4px 0 0; padding-left: 18px; word-break: break-all; }
+  button {
+    appearance: none; border: 1px solid var(--border); background: #243140; color: var(--text);
+    border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer;
+  }
+  button:hover { background: #2d3d4f; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.busy::after {
+    content: ''; display: inline-block; width: 12px; height: 12px; margin-left: 8px;
+    border: 2px solid var(--muted); border-top-color: var(--text); border-radius: 50%;
+    vertical-align: -2px; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #syncLink { font-size: 12px; color: #7dd3fc; }
+  #toast {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: #243140; border: 1px solid var(--border); padding: 8px 14px;
+    border-radius: 6px; font-size: 13px; opacity: 0; pointer-events: none;
+    transition: opacity .2s; max-width: 90vw; z-index: 20;
+  }
+  #toast.show { opacity: 1; }
+  #settingsModal, #promptModal {
+    position: fixed; inset: 0; z-index: 40; display: none;
+    align-items: center; justify-content: center;
+  }
+  #settingsModal.open, #promptModal.open { display: flex; }
+  #settingsBackdrop, #promptBackdrop {
+    position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55);
+  }
+  #settingsPanel, #promptPanel {
+    position: relative; z-index: 1;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px 18px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  }
+  #settingsPanel { width: min(360px, 92vw); }
+  #promptPanel {
+    width: min(720px, 94vw); max-height: min(88vh, 900px);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  #settingsPanel h3, #promptPanel h3 {
+    margin: 0 0 14px; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  #promptPanel h3 { margin: 0; }
+  #settingsClose, #promptClose {
+    padding: 4px 8px; font-size: 16px; line-height: 1; border: none; background: transparent;
+    color: var(--muted);
+  }
+  #settingsClose:hover, #promptClose:hover { color: var(--text); background: #243140; }
+  #promptText {
+    width: 100%; flex: 1; min-height: 280px; max-height: 60vh;
+    resize: vertical; background: #0f1419; color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;
+    font: 13px/1.45 Consolas, "Cascadia Mono", "PingFang SC", monospace;
+  }
+  #promptActions { display: flex; gap: 8px; justify-content: flex-end; }
+  #btnCopyPrompt {
+    background: #1d4ed8; border-color: #3b82f6; font-weight: 600;
+  }
+  #btnCopyPrompt:hover { background: #2563eb; }
+  .settings-row { display: flex; flex-direction: column; gap: 6px; }
+  .settings-row label { font-size: 13px; color: var(--muted); }
+  .settings-row select {
+    appearance: none; background: #243140; color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;
+    font-size: 14px; cursor: pointer;
+  }
+  .settings-row select:focus { outline: 1px solid #3b82f6; }
+  @media (max-width: 800px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 1fr 240px; }
+    aside { border-left: 0; border-top: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>vibe-planning</h1>
+    <span class="meta" id="projectMeta"></span>
+    <div id="legend">
+      <span class="chip"><span class="swatch idea"></span><span data-i18n="status.idea">idea</span></span>
+      <span class="chip"><span class="swatch proposed"></span><span data-i18n="status.proposed">proposed</span></span>
+      <span class="chip"><span class="swatch planned"></span><span data-i18n="status.planned">planned</span></span>
+      <span class="chip"><span class="swatch doing"></span><span data-i18n="status.doing">doing</span></span>
+      <span class="chip"><span class="swatch done"></span><span data-i18n="status.done">done</span></span>
+      <span class="chip"><span class="swatch deferred"></span><span data-i18n="status.deferred">deferred</span></span>
+      <span class="chip"><span class="swatch cancelled"></span><span data-i18n="status.cancelled">cancelled</span></span>
+      <span class="chip"><span class="swatch ghost"></span><span data-i18n="status.ghost">ghost</span></span>
+    </div>
+    <div class="actions">
+      <button type="button" id="btnSync" data-i18n="sync" data-i18n-title="sync.title">Sync repo</button>
+      <button type="button" id="btnAiPrompt" data-i18n="aiPrompt" data-i18n-title="aiPrompt.title">AI prompt</button>
+      <button type="button" id="btnSettings" data-i18n="settings">⚙ Settings</button>
+      <a id="syncLink" href="/api/sync-prompt" target="_blank" hidden data-i18n="sync.promptLink">sync-prompt</a>
+    </div>
+  </header>
+  <main>
+    <div id="graph"></div>
+    <aside>
+      <h2 data-i18n="detail.heading">Node</h2>
+      <div id="detail" class="empty" data-i18n="detail.empty">Click a node for details</div>
+      <button id="btnSuggest" disabled data-i18n="suggest">Suggest from here</button>
+      <div class="field" id="ghostHint" hidden>
+        <b data-i18n="ghost.preview">Ghost preview</b>
+        <ul id="ghostList"></ul>
+      </div>
+    </aside>
+  </main>
+</div>
+<div id="nodeToolbar" role="toolbar" aria-label="Node actions" hidden>
+  <button type="button" id="btnInspire" class="primary" data-i18n="toolbar.inspire">启发</button>
+  <button type="button" id="btnAdvance" data-i18n="toolbar.advance">推进</button>
+</div>
+<div id="toast"></div>
+<div id="settingsModal" aria-hidden="true">
+  <div id="settingsBackdrop"></div>
+  <div id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <h3>
+      <span id="settingsTitle" data-i18n="settings.title">Settings</span>
+      <button type="button" id="settingsClose" data-i18n-title="settings.close" title="Close">×</button>
+    </h3>
+    <div class="settings-row">
+      <label for="localeSelect" data-i18n="settings.language">Language</label>
+      <select id="localeSelect">
+        <option value="zh-CN">简体中文</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+  </div>
+</div>
+<div id="promptModal" aria-hidden="true">
+  <div id="promptBackdrop"></div>
+  <div id="promptPanel" role="dialog" aria-modal="true" aria-labelledby="promptTitle">
+    <h3>
+      <span id="promptTitle" data-i18n="aiPrompt.title">AI sync prompt</span>
+      <button type="button" id="promptClose" data-i18n-title="aiPrompt.close" title="Close">×</button>
+    </h3>
+    <textarea id="promptText" readonly spellcheck="false"></textarea>
+    <div id="promptActions">
+      <button type="button" id="btnPromptClose" data-i18n="aiPrompt.close">Close</button>
+      <button type="button" id="btnCopyPrompt" data-i18n="aiPrompt.copy">Copy</button>
+    </div>
+  </div>
+</div>
+<script>
+window.PLAN_TREE = /*__PLAN_TREE__*/null;
+</script>
+<script>
+(function () {
+  let data = window.PLAN_TREE || { project: '?', nodes: [], ghosts: [] };
+  let network = null;
+  let nodesDS = null;
+  let edgesDS = null;
+  let selected = null;
+  let hoverNodeId = null;
+  let toolbarNodeId = null;
+  let blurTimer = null;
+  let lastSyncSummary = '';
+  let syncPromptWritten = false;
+  var layoutPositions = {};
+  var layoutSaveTimer = null;
+
+  const I18N = {
+    'zh-CN': {
+      sync: '同步仓库',
+      'sync.title': '扫描文档与 git 并更新计划树',
+      'sync.promptLink': 'sync-prompt',
+      'sync.wrotePrompt': '已写 sync-prompt',
+      aiPrompt: 'AI 提示词',
+      'aiPrompt.title': 'AI 同步提示词',
+      'aiPrompt.copy': '复制',
+      'aiPrompt.close': '关闭',
+      settings: '⚙ 设置',
+      'settings.title': '设置',
+      'settings.close': '关闭',
+      'settings.language': '语言',
+      'status.idea': '构想',
+      'status.proposed': '已提议',
+      'status.planned': '已规划',
+      'status.doing': '进行中',
+      'status.done': '完成',
+      'status.deferred': '延期',
+      'status.cancelled': '取消',
+      'status.ghost': '幽灵',
+      'detail.heading': '节点',
+      'detail.empty': '点击图中节点查看详情',
+      suggest: '从此处建议',
+      'ghost.preview': 'Ghost 预览',
+      'ghost.tag': '(ghost)',
+      'field.id': 'ID',
+      'field.title': '标题',
+      'field.status': '状态',
+      'field.kind': '类型',
+      'field.parent': 'parent',
+      'field.dependsOn': 'dependsOn',
+      'field.docs': 'docs',
+      'field.notes': 'notes',
+      'meta.nodes': '节点',
+      'meta.ghosts': '幽灵',
+      'toolbar.inspire': '启发',
+      'toolbar.advance': '推进',
+      'toolbar.advanceGhost': '推进→构想',
+      'toast.suggestCopied': '已复制「从此处建议」请求',
+      'toast.inspireCopied': '已复制「启发」提示词',
+      'toast.advanceCopied': '已复制「推进」提示词',
+      'toast.promotedIdea': '已推进为构想节点',
+      'toast.copyPrompt': '复制以下内容:',
+      'toast.syncing': '正在同步仓库…',
+      'toast.syncDone': '同步完成',
+      'toast.syncFail': '同步失败',
+      'toast.syncFailWith': '同步失败: ',
+      'toast.generating': '正在生成 AI 提示词…',
+      'toast.copied': '已复制到剪贴板',
+      'toast.fail': '生成失败',
+    },
+    en: {
+      sync: 'Sync repo',
+      'sync.title': 'Scan docs + git and update plan tree',
+      'sync.promptLink': 'sync-prompt',
+      'sync.wrotePrompt': 'Wrote sync-prompt',
+      aiPrompt: 'AI prompt',
+      'aiPrompt.title': 'AI sync prompt',
+      'aiPrompt.copy': 'Copy',
+      'aiPrompt.close': 'Close',
+      settings: '⚙ Settings',
+      'settings.title': 'Settings',
+      'settings.close': 'Close',
+      'settings.language': 'Language',
+      'status.idea': 'Idea',
+      'status.proposed': 'Proposed',
+      'status.planned': 'Planned',
+      'status.doing': 'Doing',
+      'status.done': 'Done',
+      'status.deferred': 'Deferred',
+      'status.cancelled': 'Cancelled',
+      'status.ghost': 'Ghost',
+      'detail.heading': 'Node',
+      'detail.empty': 'Click a node for details',
+      suggest: 'Suggest from here',
+      'ghost.preview': 'Ghost preview',
+      'ghost.tag': '(ghost)',
+      'field.id': 'ID',
+      'field.title': 'Title',
+      'field.status': 'Status',
+      'field.kind': 'Kind',
+      'field.parent': 'parent',
+      'field.dependsOn': 'dependsOn',
+      'field.docs': 'docs',
+      'field.notes': 'notes',
+      'meta.nodes': 'nodes',
+      'meta.ghosts': 'ghosts',
+      'toolbar.inspire': 'Inspire',
+      'toolbar.advance': 'Advance',
+      'toolbar.advanceGhost': 'Advance → Idea',
+      'toast.suggestCopied': 'Copied suggest-from request',
+      'toast.inspireCopied': 'Copied inspire prompt',
+      'toast.advanceCopied': 'Copied advance prompt',
+      'toast.promotedIdea': 'Promoted to idea node',
+      'toast.copyPrompt': 'Copy the following:',
+      'toast.syncing': 'Syncing repo…',
+      'toast.syncDone': 'Sync complete',
+      'toast.syncFail': 'Sync failed',
+      'toast.syncFailWith': 'Sync failed: ',
+      'toast.generating': 'Generating AI prompt…',
+      'toast.copied': 'Copied to clipboard',
+      'toast.fail': 'Failed to generate',
+    },
+  };
+
+  let locale = detectLocale();
+
+  function detectLocale() {
+    try {
+      var stored = localStorage.getItem('vibe-planning.locale');
+      if (stored === 'zh-CN' || stored === 'en') return stored;
+    } catch (e) { /* ignore */ }
+    var nav = (navigator.language || navigator.userLanguage || '').toLowerCase();
+    return nav.indexOf('zh') === 0 ? 'zh-CN' : 'en';
+  }
+
+  function t(key) {
+    var pack = I18N[locale] || I18N.en;
+    if (pack[key] != null) return pack[key];
+    if (I18N.en[key] != null) return I18N.en[key];
+    return key;
+  }
+
+  function statusLabel(code) {
+    var key = 'status.' + (code || 'idea');
+    var label = t(key);
+    return label === key ? (code || '') : label;
+  }
+
+  function applyLocale() {
+    document.documentElement.lang = locale;
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      var key = el.getAttribute('data-i18n');
+      if (key) el.textContent = t(key);
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(function (el) {
+      var key = el.getAttribute('data-i18n-title');
+      if (key) el.setAttribute('title', t(key));
+    });
+    var sel = document.getElementById('localeSelect');
+    if (sel) sel.value = locale;
+    if (syncPromptWritten) {
+      var link = document.getElementById('syncLink');
+      if (link) link.textContent = t('sync.wrotePrompt');
+    }
+    updateMeta();
+    if (selected) showDetail(selected);
+    else {
+      var detailEl = document.getElementById('detail');
+      if (detailEl && detailEl.classList.contains('empty')) {
+        detailEl.textContent = t('detail.empty');
+      }
+    }
+    positionToolbar();
+  }
+
+  function setLocale(next) {
+    if (next !== 'zh-CN' && next !== 'en') return;
+    locale = next;
+    try { localStorage.setItem('vibe-planning.locale', locale); } catch (e) { /* ignore */ }
+    applyLocale();
+  }
+
+  const STATUS = {
+    idea:      { bg: '#0f1419', border: '#3b82f6', font: '#e7ecf1' },
+    proposed:  { bg: '#2563eb', border: '#1d4ed8', font: '#fff' },
+    planned:   { bg: '#7c3aed', border: '#6d28d9', font: '#fff' },
+    doing:     { bg: '#d97706', border: '#b45309', font: '#fff' },
+    done:      { bg: '#16a34a', border: '#15803d', font: '#fff' },
+    deferred:  { bg: '#1a222c', border: '#b45309', font: '#e7ecf1', dashes: true },
+    cancelled: { bg: '#374151', border: '#6b7280', font: '#9ca3af', strike: true },
+  };
+  const GHOST = { bg: '#0f1419', border: '#38bdf8', font: '#e0f2fe', dashes: true, glow: true };
+  const STATUS_ORDER = { idea: 0, proposed: 1, planned: 2, doing: 3, done: 4, deferred: 5, cancelled: 6 };
+
+  function styleFor(status, isGhost) {
+    const s = isGhost ? GHOST : (STATUS[status] || STATUS.idea);
+    return {
+      color: {
+        background: s.bg,
+        border: s.border,
+        highlight: { background: s.bg, border: '#fff' },
+        hover: { background: s.bg, border: '#fff' },
+      },
+      font: {
+        color: s.font,
+        strikeThrough: !!s.strike,
+        size: 14,
+        face: 'Segoe UI, PingFang SC, Microsoft YaHei, sans-serif',
+      },
+      borderWidth: 2,
+      shapeProperties: s.dashes ? { borderDashes: [6, 4] } : { borderDashes: false },
+      shadow: s.glow
+        ? { enabled: true, color: 'rgba(56,189,248,0.55)', size: 12, x: 0, y: 0 }
+        : { enabled: false },
+    };
+  }
+
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(function () { el.classList.remove('show'); }, 2800);
+  }
+
+  function copyText(text, toastKey) {
+    function done() { toast(t(toastKey || 'toast.copied')); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () {
+        window.prompt(t('toast.copyPrompt'), text);
+        done();
+      });
+    } else {
+      window.prompt(t('toast.copyPrompt'), text);
+      done();
+    }
+  }
+
+  function fmtList(v) {
+    if (Array.isArray(v)) return v.length ? v.join(', ') : 'none';
+    if (v == null || v === '') return 'none';
+    return String(v);
+  }
+
+  function nodeContextLines(raw) {
+    var r = raw || {};
+    return [
+      'project: ' + (data.project || ''),
+      'nodeId: ' + (r.id || ''),
+      'title: ' + (r.title || ''),
+      'status: ' + (r.status || 'idea'),
+      'kind: ' + (r.kind || 'none'),
+      'parent: ' + (r.parent || 'none'),
+      'dependsOn: ' + fmtList(r.dependsOn),
+      'docs: ' + fmtList(r.docs),
+      'notes: ' + (r.notes || 'none'),
+    ];
+  }
+
+  function buildInspirePrompt(raw) {
+    return [
+      'vibe-planning:inspire-from',
+      nodeContextLines(raw).join('\n'),
+      '',
+      'Invoke the vibe-planning skill. From this node, propose 3–6 deeper new feature candidates (like a feature idea list).',
+      'For each candidate: numbered title, one-line why, suggested kind, suggested status `idea`.',
+      'End with YAML ghost node snippets (id prefix ghost-, parent/dependsOn = this node) the user can confirm.',
+      'After you finish, feed results back by updating docs/vibe-planning/plan-tree.yaml (add ghosts then promote on confirm, OR real nodes with parent/dependsOn = this node). Never invent nonexistent doc paths.',
+    ].join('\n');
+  }
+
+  function advanceTaskForStatus(status) {
+    var s = status || 'idea';
+    switch (s) {
+      case 'idea':
+        return 'Clarify into a short design proposal outline + acceptance criteria.';
+      case 'proposed':
+        return 'Write an implementation plan outline (tasks, gates, files) ready for writing-plans.';
+      case 'planned':
+        return 'Start an execution checklist + first task brief + verification commands.';
+      case 'doing':
+        return 'Unblock / finish remaining work + verification + done criteria.';
+      case 'done':
+        return 'Retrospective + follow-up ideas + what to archive.';
+      case 'deferred':
+        return 'Revisit criteria: when to un-defer, risks, minimal spike.';
+      case 'cancelled':
+        return 'Confirm cancellation rationale OR revive conditions.';
+      default:
+        return 'Clarify into a short design proposal outline + acceptance criteria.';
+    }
+  }
+
+  function buildAdvancePrompt(raw) {
+    var r = raw || {};
+    var status = r.status || 'idea';
+    return [
+      'vibe-planning:advance-from',
+      nodeContextLines(r).join('\n'),
+      '',
+      'Invoke the vibe-planning skill. Produce a detailed completion/verification plan for this node.',
+      'Status-specific task (' + status + '): ' + advanceTaskForStatus(status),
+      'Write concrete next steps. If you create a new design/plan file, say so and then link it in plan-tree docs[] (never invent nonexistent paths).',
+      'After you finish, feed results back by updating docs/vibe-planning/plan-tree.yaml (update status / attach new plan/spec paths if created; add ghost-then-promote OR real child nodes with parent/dependsOn = this node when appropriate).',
+    ].join('\n');
+  }
+
+  const nodeToolbar = document.getElementById('nodeToolbar');
+  const btnInspire = document.getElementById('btnInspire');
+  const btnAdvance = document.getElementById('btnAdvance');
+
+  function activeToolbarId() {
+    if (hoverNodeId) return hoverNodeId;
+    if (selected && selected.id) return selected.id;
+    return null;
+  }
+
+  function hideToolbar() {
+    toolbarNodeId = null;
+    nodeToolbar.classList.remove('show');
+  }
+
+  function positionToolbar() {
+    if (!network) { hideToolbar(); return; }
+    var id = activeToolbarId();
+    if (!id || !nodesDS || !nodesDS.get(id)) { hideToolbar(); return; }
+    var node = nodesDS.get(id);
+    var isGhost = !!node._ghost;
+    btnAdvance.hidden = false;
+    btnAdvance.textContent = t(isGhost ? 'toolbar.advanceGhost' : 'toolbar.advance');
+    try {
+      var pos = network.getPositions([id])[id];
+      if (!pos) { hideToolbar(); return; }
+      var dom = network.canvasToDOM(pos);
+      toolbarNodeId = id;
+      nodeToolbar.style.left = dom.x + 'px';
+      nodeToolbar.style.top = (dom.y - 18) + 'px';
+      nodeToolbar.classList.add('show');
+    } catch (e) {
+      hideToolbar();
+    }
+  }
+
+  function clearBlurTimer() {
+    if (blurTimer) {
+      clearTimeout(blurTimer);
+      blurTimer = null;
+    }
+  }
+
+  function scheduleHideToolbar() {
+    clearBlurTimer();
+    blurTimer = setTimeout(function () {
+      blurTimer = null;
+      hoverNodeId = null;
+      if (!(selected && selected.id)) hideToolbar();
+      else positionToolbar();
+    }, 180);
+  }
+
+  var subtreeDrag = null;
+
+  function collectDescendantIds(rootId) {
+    var all = (data.nodes || []).concat(data.ghosts || []);
+    var kids = {};
+    for (var i = 0; i < all.length; i++) {
+      var n = all[i];
+      if (!n || !n.id || !n.parent) continue;
+      if (!kids[n.parent]) kids[n.parent] = [];
+      kids[n.parent].push(n.id);
+    }
+    var out = [];
+    var stack = [rootId];
+    var seen = {};
+    seen[rootId] = true;
+    while (stack.length) {
+      var id = stack.pop();
+      var ch = kids[id] || [];
+      for (var j = 0; j < ch.length; j++) {
+        var cid = ch[j];
+        if (seen[cid]) continue;
+        seen[cid] = true;
+        out.push(cid);
+        stack.push(cid);
+      }
+    }
+    return out;
+  }
+
+  function normalizePositions(posMap) {
+    var out = {};
+    if (!posMap) return out;
+    Object.keys(posMap).forEach(function (id) {
+      var p = posMap[id];
+      if (!p) return;
+      var x = Number(p.x);
+      var y = Number(p.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      out[id] = { x: x, y: y };
+    });
+    return out;
+  }
+
+  function saveLayout(positions) {
+    var cleaned = normalizePositions(positions);
+    Object.keys(cleaned).forEach(function (id) {
+      layoutPositions[id] = cleaned[id];
+    });
+    if (!liveEnabled()) return;
+    fetch('/api/layout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positions: cleaned }),
+    }).catch(function (err) {
+      console.warn('[vibe-planning] saveLayout failed', err);
+    });
+  }
+
+  function scheduleSaveLayout(net) {
+    if (!net) return;
+    clearTimeout(layoutSaveTimer);
+    layoutSaveTimer = setTimeout(function () {
+      layoutSaveTimer = null;
+      try { saveLayout(net.getPositions()); } catch (e) {
+        console.warn('[vibe-planning] saveLayout failed', e);
+      }
+    }, 250);
+  }
+
+  function flushSaveLayout(net) {
+    clearTimeout(layoutSaveTimer);
+    layoutSaveTimer = null;
+    if (!net) return;
+    try { saveLayout(net.getPositions()); } catch (e) {
+      console.warn('[vibe-planning] saveLayout failed', e);
+    }
+  }
+
+  async function fetchLayout() {
+    try {
+      var res = await fetch('/api/layout', { cache: 'no-store' });
+      if (!res.ok) return;
+      var json = await res.json();
+      var next = normalizePositions(json && json.positions);
+      Object.keys(next).forEach(function (id) {
+        layoutPositions[id] = next[id];
+      });
+    } catch (e) {
+      console.warn('[vibe-planning] fetchLayout failed', e);
+    }
+  }
+
+  function applyLayoutToNodes(nodesArr) {
+    var applied = 0;
+    (nodesArr || []).forEach(function (n) {
+      var s = layoutPositions[n.id];
+      if (!s) return;
+      n.x = s.x;
+      n.y = s.y;
+      applied++;
+    });
+    return applied;
+  }
+
+  function wireNetworkToolbar(net) {
+    net.on('hoverNode', function (p) {
+      clearBlurTimer();
+      hoverNodeId = p.node;
+      positionToolbar();
+    });
+    net.on('blurNode', function () {
+      scheduleHideToolbar();
+    });
+    net.on('dragStart', function (p) {
+      if (!p.nodes || !p.nodes.length) {
+        subtreeDrag = null;
+        return;
+      }
+      var rootId = p.nodes[0];
+      var pos = net.getPositions([rootId])[rootId];
+      if (!pos) {
+        subtreeDrag = null;
+        return;
+      }
+      subtreeDrag = {
+        rootId: rootId,
+        lastX: pos.x,
+        lastY: pos.y,
+        childIds: collectDescendantIds(rootId),
+      };
+    });
+    net.on('dragging', function (p) {
+      positionToolbar();
+      if (!subtreeDrag) return;
+      if (!p.nodes || p.nodes.indexOf(subtreeDrag.rootId) < 0) return;
+      var pos = net.getPositions([subtreeDrag.rootId])[subtreeDrag.rootId];
+      if (!pos) return;
+      var dx = pos.x - subtreeDrag.lastX;
+      var dy = pos.y - subtreeDrag.lastY;
+      subtreeDrag.lastX = pos.x;
+      subtreeDrag.lastY = pos.y;
+      if (dx || dy) {
+        var ids = subtreeDrag.childIds;
+        if (ids.length) {
+          var positions = net.getPositions(ids);
+          for (var i = 0; i < ids.length; i++) {
+            var id = ids[i];
+            var c = positions[id];
+            if (!c) continue;
+            net.moveNode(id, c.x + dx, c.y + dy);
+          }
+        }
+        scheduleSaveLayout(net);
+      }
+    });
+    net.on('dragEnd', function () {
+      flushSaveLayout(net);
+      subtreeDrag = null;
+      positionToolbar();
+    });
+    net.on('zoom', function () { positionToolbar(); });
+    net.on('animationFinished', function () { positionToolbar(); });
+    net.on('afterDrawing', function () {
+      if (nodeToolbar.classList.contains('show') || activeToolbarId()) positionToolbar();
+    });
+  }
+
+  nodeToolbar.addEventListener('mouseenter', function () {
+    clearBlurTimer();
+  });
+  nodeToolbar.addEventListener('mouseleave', function () {
+    scheduleHideToolbar();
+  });
+
+  btnInspire.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var id = toolbarNodeId || activeToolbarId();
+    if (!id || !nodesDS) return;
+    var node = nodesDS.get(id);
+    if (!node) return;
+    copyText(buildInspirePrompt(node._raw || {}), 'toast.inspireCopied');
+  });
+
+  btnAdvance.addEventListener('click', async function (e) {
+    e.stopPropagation();
+    var id = toolbarNodeId || activeToolbarId();
+    if (!id || !nodesDS) return;
+    var node = nodesDS.get(id);
+    if (!node) return;
+    if (node._ghost) {
+      btnAdvance.disabled = true;
+      try {
+        var res = await fetch('/api/promote-ghost', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id }),
+        });
+        var json = await res.json();
+        if (!res.ok || !json.ok) {
+          toast((json && json.error) || ('HTTP ' + res.status));
+          return;
+        }
+        toast(t('toast.promotedIdea'));
+        await reloadTree({ force: true });
+      } catch (err) {
+        toast(String(err && err.message ? err.message : err));
+      } finally {
+        btnAdvance.disabled = false;
+      }
+      return;
+    }
+    copyText(buildAdvancePrompt(node._raw || {}), 'toast.advanceCopied');
+  });
+
+  function updateMeta() {
+    var meta = (data.project || '') + ' · ' + t('meta.nodes') + ' ' + (data.nodes || []).length +
+      ' · ' + t('meta.ghosts') + ' ' + (data.ghosts || []).length;
+    if (lastSyncSummary) meta += ' · ' + lastSyncSummary;
+    document.getElementById('projectMeta').textContent = meta;
+  }
+
+  function hashStr(s) {
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function computeDepths(allRaw) {
+    var byId = {};
+    allRaw.forEach(function (n) { if (n && n.id) byId[n.id] = n; });
+    var memo = {};
+    var visiting = {};
+
+    function depthOf(id) {
+      if (memo[id] != null) return memo[id];
+      if (visiting[id]) return 0;
+      visiting[id] = true;
+      var n = byId[id];
+      var best = 0;
+      if (n) {
+        var deps = Array.isArray(n.dependsOn) ? n.dependsOn : [];
+        for (var i = 0; i < deps.length; i++) {
+          if (!deps[i] || !byId[deps[i]]) continue;
+          var d = depthOf(deps[i]) + 1;
+          if (d > best) best = d;
+        }
+        if (n.parent && byId[n.parent]) {
+          var p = depthOf(n.parent) + 0.55;
+          if (p > best) best = p;
+        }
+      }
+      visiting[id] = false;
+      memo[id] = best;
+      return best;
+    }
+
+    allRaw.forEach(function (n) { if (n && n.id) depthOf(n.id); });
+    return memo;
+  }
+
+  var GAP_X = 210;
+  var GAP_Y = 175;
+  var BOX_W = 170;
+  var BOX_H = 48;
+
+  function spreadSeeds(nodesArr, depths) {
+    var byLevel = {};
+    nodesArr.forEach(function (n) {
+      var lv = Math.round((depths[n.id] || 0) * 2) / 2;
+      if (!byLevel[lv]) byLevel[lv] = [];
+      byLevel[lv].push(n);
+    });
+    Object.keys(byLevel).forEach(function (lv) {
+      var arr = byLevel[lv];
+      arr.sort(function (a, b) {
+        return String(a.id).localeCompare(String(b.id));
+      });
+      var start = -((arr.length - 1) * GAP_X) / 2;
+      arr.forEach(function (n, i) {
+        var h = hashStr(String(n.id));
+        n.x = start + i * GAP_X + ((h % 36) - 18);
+        n.y = Number(lv) * GAP_Y + (((h >> 8) % 28) - 14);
+      });
+    });
+  }
+
+  function resolveOverlaps(positions) {
+    var ids = Object.keys(positions);
+    var pad = 16;
+    for (var pass = 0; pass < 8; pass++) {
+      for (var i = 0; i < ids.length; i++) {
+        for (var j = i + 1; j < ids.length; j++) {
+          var a = positions[ids[i]];
+          var b = positions[ids[j]];
+          var dx = b.x - a.x;
+          var dy = b.y - a.y;
+          var minX = BOX_W + pad;
+          var minY = BOX_H + pad;
+          var ox = minX - Math.abs(dx);
+          var oy = minY - Math.abs(dy);
+          if (ox <= 0 || oy <= 0) continue;
+          if (ox < oy) {
+            var sx = (dx === 0 ? (i % 2 ? 1 : -1) : (dx > 0 ? 1 : -1)) * (ox / 2 + 2);
+            a.x -= sx;
+            b.x += sx;
+          } else {
+            var sy = (dy === 0 ? (i % 2 ? 1 : -1) : (dy > 0 ? 1 : -1)) * (oy / 2 + 2);
+            a.y -= sy;
+            b.y += sy;
+          }
+        }
+      }
+    }
+    return positions;
+  }
+
+  function buildGraphData(tree) {
+    const idSet = new Set();
+    const nodesArr = [];
+    const edgesArr = [];
+    const list = (tree.nodes || []).slice().sort(function (a, b) {
+      const sa = STATUS_ORDER[a.status] != null ? STATUS_ORDER[a.status] : 9;
+      const sb = STATUS_ORDER[b.status] != null ? STATUS_ORDER[b.status] : 9;
+      if (sa !== sb) return sa - sb;
+      return String(a.title || a.id).localeCompare(String(b.title || b.id), 'zh');
+    });
+    const ghosts = tree.ghosts || [];
+    const allRaw = list.concat(ghosts);
+    const depths = computeDepths(allRaw);
+
+    function addNode(n, isGhost) {
+      if (!n || !n.id || idSet.has(n.id)) return;
+      idSet.add(n.id);
+      const st = styleFor(n.status || 'idea', isGhost);
+      nodesArr.push({
+        id: n.id,
+        label: n.title || n.id,
+        title: (isGhost ? '[ghost] ' : '') + (n.title || n.id) + '\n' + (n.status || ''),
+        ...st,
+        _raw: n,
+        _ghost: !!isGhost,
+      });
+    }
+
+    function addEdges(n) {
+      if (n.parent) {
+        edgesArr.push({
+          id: 'p:' + n.parent + '>' + n.id,
+          from: n.parent, to: n.id, arrows: 'to',
+          color: { color: '#8b9bab' },
+          width: 2,
+          length: 140,
+          smooth: false,
+        });
+      }
+      const deps = Array.isArray(n.dependsOn) ? n.dependsOn : [];
+      for (const d of deps) {
+        if (!d) continue;
+        edgesArr.push({
+          id: 'd:' + d + '>' + n.id,
+          from: d, to: n.id, arrows: 'to',
+          color: { color: '#3d4f63', opacity: 0.45 },
+          width: 1,
+          dashes: [4, 4],
+          length: 230,
+          smooth: false,
+        });
+      }
+    }
+
+    list.forEach(function (n) { addNode(n, false); });
+    ghosts.forEach(function (n) { addNode(n, true); });
+    spreadSeeds(nodesArr, depths);
+    applyLayoutToNodes(nodesArr);
+    list.forEach(addEdges);
+    ghosts.forEach(addEdges);
+    return { nodesArr: nodesArr, edgesArr: edgesArr };
+  }
+
+  const netOpts = {
+    physics: {
+      enabled: true,
+      solver: 'barnesHut',
+      barnesHut: {
+        gravitationalConstant: -6500,
+        centralGravity: 0.06,
+        springLength: 150,
+        springConstant: 0.035,
+        damping: 0.45,
+        avoidOverlap: 1,
+      },
+      stabilization: { iterations: 220, fit: true },
+    },
+    interaction: { hover: true, tooltipDelay: 120, dragNodes: true },
+    nodes: {
+      shape: 'box',
+      margin: 10,
+      widthConstraint: { minimum: 90, maximum: 160 },
+      heightConstraint: { minimum: 36 },
+    },
+    edges: {
+      smooth: false,
+    },
+    layout: {
+      hierarchical: { enabled: false },
+      improvedLayout: false,
+    },
+  };
+
+  let lastTreeFp = '';
+  let lastStructFp = '';
+  let didInitialFit = false;
+
+  function treeFingerprint(tree) {
+    try { return JSON.stringify(tree || {}); } catch { return String(Date.now()); }
+  }
+
+  function structureFingerprint(built) {
+    const n = (built.nodesArr || []).map(function (x) { return x.id; }).sort().join(',');
+    const e = (built.edgesArr || []).map(function (x) { return x.id || (x.from + '>' + x.to); }).sort().join(',');
+    return n + '|' + e;
+  }
+
+  function stabilizeThenFreeze(doFit) {
+    if (!network || !nodesDS) return;
+    var ids = nodesDS.getIds();
+    var fixedIds = [];
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i];
+      if (!layoutPositions[id]) continue;
+      nodesDS.update({ id: id, fixed: { x: true, y: true } });
+      fixedIds.push(id);
+    }
+    function unfixSaved() {
+      for (var j = 0; j < fixedIds.length; j++) {
+        nodesDS.update({ id: fixedIds[j], fixed: false });
+      }
+    }
+    function applyFinal(doPhysicsCleanup) {
+      network.setOptions({ physics: { enabled: false } });
+      var pos = doPhysicsCleanup ? resolveOverlaps(network.getPositions()) : network.getPositions();
+      Object.keys(layoutPositions).forEach(function (id) {
+        if (!pos[id]) return;
+        pos[id] = { x: layoutPositions[id].x, y: layoutPositions[id].y };
+      });
+      Object.keys(pos).forEach(function (id) {
+        network.moveNode(id, pos[id].x, pos[id].y);
+      });
+      unfixSaved();
+      if (doFit || !didInitialFit) {
+        network.fit({ animation: false });
+        didInitialFit = true;
+      }
+    }
+    if (fixedIds.length && fixedIds.length === ids.length) {
+      applyFinal(false);
+      return;
+    }
+    network.setOptions({ physics: { enabled: true } });
+    network.once('stabilizationIterationsDone', function () {
+      applyFinal(true);
+    });
+  }
+
+  function renderTree(tree, opts) {
+    opts = opts || {};
+    const next = tree || data;
+    const fp = treeFingerprint(next);
+    if (!opts.force && fp && fp === lastTreeFp && network) {
+      return;
+    }
+    lastTreeFp = fp;
+    data = next;
+    window.PLAN_TREE = data;
+    updateMeta();
+    const built = buildGraphData(data);
+    const structFp = structureFingerprint(built);
+    const structureChanged = structFp !== lastStructFp;
+
+    if (!network) {
+      lastStructFp = structFp;
+      nodesDS = new vis.DataSet(built.nodesArr);
+      edgesDS = new vis.DataSet(built.edgesArr);
+      var graphEl = document.getElementById('graph');
+      network = new vis.Network(
+        graphEl,
+        { nodes: nodesDS, edges: edgesDS },
+        netOpts
+      );
+      // vis-network clears container children; re-attach floating toolbar
+      nodeToolbar.hidden = false;
+      graphEl.appendChild(nodeToolbar);
+      network.on('click', function (p) {
+        if (!p.nodes.length) {
+          hoverNodeId = null;
+          showDetail(null);
+          hideToolbar();
+          return;
+        }
+        showDetail(nodesDS.get(p.nodes[0]));
+      });
+      wireNetworkToolbar(network);
+      stabilizeThenFreeze(true);
+      return;
+    }
+
+    const pos = network.getPositions();
+    const sel = selected && selected.id;
+    const byId = {};
+    built.nodesArr.forEach(function (n) {
+      if (pos[n.id]) {
+        n.x = pos[n.id].x;
+        n.y = pos[n.id].y;
+      } else if (layoutPositions[n.id]) {
+        n.x = layoutPositions[n.id].x;
+        n.y = layoutPositions[n.id].y;
+      }
+      byId[n.id] = n;
+    });
+
+    const keepIds = new Set(Object.keys(byId));
+    nodesDS.getIds().forEach(function (id) {
+      if (!keepIds.has(id)) nodesDS.remove(id);
+    });
+    built.nodesArr.forEach(function (n) {
+      if (nodesDS.get(n.id)) nodesDS.update(n);
+      else nodesDS.add(n);
+    });
+
+    const edgeIds = new Set(built.edgesArr.map(function (e) { return e.id; }));
+    edgesDS.getIds().forEach(function (id) {
+      if (!edgeIds.has(id)) edgesDS.remove(id);
+    });
+    built.edgesArr.forEach(function (e) {
+      if (edgesDS.get(e.id)) edgesDS.update(e);
+      else edgesDS.add(e);
+    });
+
+    lastStructFp = structFp;
+    if (structureChanged || opts.forcePhysics) {
+      stabilizeThenFreeze(!!opts.forceFit);
+    } else {
+      network.setOptions({ physics: { enabled: false } });
+    }
+
+    if (sel && nodesDS.get(sel)) {
+      showDetail(nodesDS.get(sel));
+      network.selectNodes([sel]);
+    }
+  }
+
+  const detail = document.getElementById('detail');
+  const btn = document.getElementById('btnSuggest');
+  const btnSync = document.getElementById('btnSync');
+  const btnAiPrompt = document.getElementById('btnAiPrompt');
+  const btnSettings = document.getElementById('btnSettings');
+  const syncLink = document.getElementById('syncLink');
+  const ghostHint = document.getElementById('ghostHint');
+  const ghostList = document.getElementById('ghostList');
+  const settingsModal = document.getElementById('settingsModal');
+  const settingsBackdrop = document.getElementById('settingsBackdrop');
+  const settingsClose = document.getElementById('settingsClose');
+  const localeSelect = document.getElementById('localeSelect');
+  const promptModal = document.getElementById('promptModal');
+  const promptBackdrop = document.getElementById('promptBackdrop');
+  const promptClose = document.getElementById('promptClose');
+  const btnPromptClose = document.getElementById('btnPromptClose');
+  const btnCopyPrompt = document.getElementById('btnCopyPrompt');
+  const promptText = document.getElementById('promptText');
+
+  function openSettings() {
+    settingsModal.classList.add('open');
+    settingsModal.setAttribute('aria-hidden', 'false');
+    localeSelect.focus();
+  }
+
+  function closeSettings() {
+    settingsModal.classList.remove('open');
+    settingsModal.setAttribute('aria-hidden', 'true');
+  }
+
+  function openPromptModal(text) {
+    promptText.value = text || '';
+    promptModal.classList.add('open');
+    promptModal.setAttribute('aria-hidden', 'false');
+    promptText.focus();
+    promptText.select();
+  }
+
+  function closePromptModal() {
+    promptModal.classList.remove('open');
+    promptModal.setAttribute('aria-hidden', 'true');
+  }
+
+  btnSettings.addEventListener('click', openSettings);
+  settingsClose.addEventListener('click', closeSettings);
+  settingsBackdrop.addEventListener('click', closeSettings);
+  promptClose.addEventListener('click', closePromptModal);
+  btnPromptClose.addEventListener('click', closePromptModal);
+  promptBackdrop.addEventListener('click', closePromptModal);
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (promptModal.classList.contains('open')) closePromptModal();
+    else if (settingsModal.classList.contains('open')) closeSettings();
+  });
+  localeSelect.addEventListener('change', function () {
+    setLocale(localeSelect.value);
+  });
+
+  btnCopyPrompt.addEventListener('click', function () {
+    var text = promptText.value || '';
+    function done() { toast(t('toast.copied')); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () {
+        promptText.select();
+        try { document.execCommand('copy'); done(); }
+        catch (e) { window.prompt(t('toast.copyPrompt'), text); done(); }
+      });
+    } else {
+      promptText.select();
+      try { document.execCommand('copy'); done(); }
+      catch (e) { window.prompt(t('toast.copyPrompt'), text); done(); }
+    }
+  });
+
+  function relatedGhosts(nodeId) {
+    return (data.ghosts || []).filter(function (g) {
+      return g.parent === nodeId ||
+        (Array.isArray(g.dependsOn) && g.dependsOn.indexOf(nodeId) >= 0);
+    });
+  }
+
+  function showDetail(node) {
+    selected = node;
+    if (!node) {
+      detail.className = 'empty';
+      detail.removeAttribute('data-i18n');
+      detail.textContent = t('detail.empty');
+      btn.disabled = true;
+      ghostHint.hidden = true;
+      if (!hoverNodeId) hideToolbar();
+      else positionToolbar();
+      return;
+    }
+    const r = node._raw || {};
+    detail.className = '';
+    detail.removeAttribute('data-i18n');
+    const docs = (r.docs || []).map(function (d) { return '<li>' + d + '</li>'; }).join('');
+    const stCode = r.status || '';
+    const stShown = stCode ? (statusLabel(stCode) + ' <span style="color:var(--muted)">(' + stCode + ')</span>') : '';
+    detail.innerHTML =
+      '<div class="field"><b>' + t('field.id') + '</b>' + r.id +
+        (node._ghost ? ' <em>' + t('ghost.tag') + '</em>' : '') + '</div>' +
+      '<div class="field"><b>' + t('field.title') + '</b>' + (r.title || '') + '</div>' +
+      '<div class="field"><b>' + t('field.status') + '</b>' + stShown + '</div>' +
+      (r.kind ? '<div class="field"><b>' + t('field.kind') + '</b>' + r.kind + '</div>' : '') +
+      (r.parent ? '<div class="field"><b>' + t('field.parent') + '</b>' + r.parent + '</div>' : '') +
+      (r.dependsOn && r.dependsOn.length
+        ? '<div class="field"><b>' + t('field.dependsOn') + '</b>' + r.dependsOn.join(', ') + '</div>' : '') +
+      (docs ? '<div class="field"><b>' + t('field.docs') + '</b><ul>' + docs + '</ul></div>' : '') +
+      (r.notes ? '<div class="field"><b>' + t('field.notes') + '</b>' + r.notes + '</div>' : '');
+    btn.disabled = !!node._ghost;
+
+    const gs = relatedGhosts(r.id);
+    if (gs.length) {
+      ghostHint.hidden = false;
+      ghostList.innerHTML = gs.map(function (g) {
+        return '<li>' + g.id + ' — ' + (g.title || '') + '</li>';
+      }).join('');
+    } else {
+      ghostHint.hidden = true;
+    }
+    positionToolbar();
+  }
+
+  btn.addEventListener('click', function () {
+    if (!selected || selected._ghost) return;
+    copyText(buildInspirePrompt(selected._raw || {}), 'toast.inspireCopied');
+  });
+
+  btnSync.addEventListener('click', async function () {
+    btnSync.disabled = true;
+    btnSync.classList.add('busy');
+    toast(t('toast.syncing'));
+    try {
+      const res = await fetch('/api/sync', { method: 'POST' });
+      const json = await res.json();
+      lastSyncSummary = json.summary || '';
+      updateMeta();
+      if (json.promptPath) {
+        syncPromptWritten = true;
+        syncLink.hidden = false;
+        syncLink.textContent = t('sync.wrotePrompt');
+      }
+      toast(json.summary || (json.ok ? t('toast.syncDone') : t('toast.syncFail')));
+      await reloadTree({ force: true });
+    } catch (e) {
+      toast(t('toast.syncFailWith') + (e && e.message ? e.message : e));
+    } finally {
+      btnSync.disabled = false;
+      btnSync.classList.remove('busy');
+    }
+  });
+
+  btnAiPrompt.addEventListener('click', async function () {
+    btnAiPrompt.disabled = true;
+    btnAiPrompt.classList.add('busy');
+    toast(t('toast.generating'));
+    try {
+      const res = await fetch('/api/ai-sync-prompt', { method: 'POST' });
+      const json = await res.json();
+      if (!json.ok || !json.prompt) {
+        toast(json.summary || t('toast.fail'));
+        return;
+      }
+      openPromptModal(json.prompt);
+    } catch (e) {
+      toast(t('toast.fail') + ': ' + (e && e.message ? e.message : e));
+    } finally {
+      btnAiPrompt.disabled = false;
+      btnAiPrompt.classList.remove('busy');
+    }
+  });
+
+  function liveEnabled() {
+    return location.protocol === 'http:' || location.protocol === 'https:';
+  }
+
+  async function reloadTree(opts) {
+    try {
+      const res = await fetch('/api/tree', { cache: 'no-store' });
+      if (!res.ok) return;
+      const tree = await res.json();
+      await fetchLayout();
+      renderTree(tree, opts || {});
+    } catch { /* static file:// bootstrap */ }
+  }
+
+  applyLocale();
+
+  if (liveEnabled()) {
+    reloadTree({ force: true, forcePhysics: true, forceFit: true });
+    try {
+      const es = new EventSource('/api/events');
+      es.addEventListener('reload', function () { reloadTree(); });
+      es.onerror = function () { /* ignore; poll is slow backup */ };
+    } catch { /* ignore */ }
+    setInterval(function () { reloadTree(); }, 10000);
+  } else {
+    renderTree(data, { force: true, forcePhysics: true, forceFit: true });
+  }
+})();
+</script>
+</body>
+</html>

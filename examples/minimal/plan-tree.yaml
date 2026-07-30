@@ -1,0 +1,18 @@
+version: 1
+project: example
+nodes:
+  - id: example
+    title: Example project
+    status: doing
+    kind: milestone
+    docs: []
+    parent: null
+    dependsOn: []
+  - id: inbox
+    title: Inbox
+    status: idea
+    kind: backlog
+    docs: []
+    parent: example
+    dependsOn: []
+ghosts: []
