@@ -2,6 +2,7 @@
 /**
  * vibe-planning live HTTP server
  * Usage: node serve.mjs <projectRoot> [--port 7465] [--open]
+ * Port auto-bumps on EADDRINUSE (7465 → 7466 → …).
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -16,7 +17,30 @@ import { readDoneOrder, mergeDoneOrder } from './lib/done-order-store.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_ROOT = path.resolve(__dirname, '..');
+const REPO_ROOT = path.resolve(SKILL_ROOT, '..', '..');
 const TEMPLATE = path.join(SKILL_ROOT, 'assets', 'board.template.html');
+
+function readVersion() {
+  for (const p of [
+    path.join(REPO_ROOT, 'VERSION'),
+    path.join(SKILL_ROOT, 'VERSION'),
+    path.join(REPO_ROOT, 'package.json'),
+  ]) {
+    try {
+      if (!fs.existsSync(p)) continue;
+      if (p.endsWith('package.json')) {
+        const v = JSON.parse(fs.readFileSync(p, 'utf8')).version;
+        if (v) return String(v);
+      } else {
+        const v = fs.readFileSync(p, 'utf8').trim();
+        if (v) return v;
+      }
+    } catch { /* try next */ }
+  }
+  return '1.1.0';
+}
+
+const VERSION = readVersion();
 
 function fail(msg) {
   console.error('[vibe-planning]', msg);
@@ -237,12 +261,34 @@ function main() {
     }
   });
 
-  server.listen(port, '127.0.0.1', () => {
-    const url = `http://localhost:${port}/`;
-    console.log('[vibe-planning] serving', projectRoot);
+  const maxTries = 30;
+  let tryPort = port;
+  let tries = 0;
+
+  function onListening() {
+    const url = `http://localhost:${tryPort}/`;
+    console.log('[vibe-planning]', 'v' + VERSION, 'serving', projectRoot);
+    if (tryPort !== port) {
+      console.log('[vibe-planning] port', port, 'busy → using', tryPort);
+    }
     console.log('[vibe-planning]', url);
     if (open) openBrowser(url);
-  });
+  }
+
+  function tryListen() {
+    tries += 1;
+    server.once('error', (err) => {
+      if (err && err.code === 'EADDRINUSE' && tries < maxTries) {
+        tryPort += 1;
+        tryListen();
+        return;
+      }
+      fail(err && err.message ? err.message : String(err));
+    });
+    server.listen(tryPort, '127.0.0.1', onListening);
+  }
+
+  tryListen();
 }
 
 main();

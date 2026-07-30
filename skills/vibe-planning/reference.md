@@ -114,7 +114,7 @@ Sync logic: `scripts/lib/sync-repo.mjs` → `runSync(projectRoot)`
 1. Walk `docs/**/*.md` (skip `node_modules`, `.git`, `dist`, `board.html`)
 2. `git log --oneline -n 80` (+ optional name-only)
 3. Re-align existing nodes with `docs[]`
-4. Clear orphans (`*-design.md`, `*-plan.md`, superpowers) → `inbox` children; ambiguous orphans listed only in prompt
+4. Clear orphans → project root + `dependsOn` chain by doc date (impl order); no inbox; ambiguous orphans listed only in prompt
 5. Always write `docs/vibe-planning/sync-prompt.md` with Chinese paste prompt
 6. Save YAML; SSE reloads board
 

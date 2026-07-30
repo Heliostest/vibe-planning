@@ -1,6 +1,6 @@
 {
   "name": "vibe-planning",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Doc-backed dependency graph planning skill with live HTML board",
   "type": "module",
   "bin": {
@@ -12,10 +12,12 @@
   "files": [
     "bin",
     "skills",
+    "scripts",
     "install.sh",
     "install.ps1",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "VERSION"
   ],
   "keywords": [
     "skills",

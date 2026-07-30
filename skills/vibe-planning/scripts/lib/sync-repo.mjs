@@ -134,8 +134,8 @@ export function buildAiSyncPrompt(projectRoot, options = {}) {
     '## 目标 / Goals',
     '',
     '- 根据已挂接文档对齐各节点 `status`（done / doing / planned / proposed / deferred / cancelled / idea）',
-    '- 安置孤儿文档：清晰设计/计划文档挂到合适 parent（或 inbox），并设 `docs`',
-    '- 合理设置 `parent`（树）与 `dependsOn`（依赖边）',
+    '- 安置孤儿文档：能归类则挂合适 parent；否则挂项目根，按文档日期（实现顺序）串联 `dependsOn`（禁止 inbox）',
+    '- 合理设置 `parent`（树）与 `dependsOn`（依赖边）；design→plan 保留，其余按实现序链式连接',
     '- 结合近期 git 提交，把已交付标 `done`、暂缓标 `deferred`；勿凭空发明功能',
     '- 模糊孤儿仅在有把握时挂接，否则保留说明供人工处理',
     '',
@@ -286,21 +286,81 @@ function gitLog(projectRoot) {
   }
 }
 
-function ensureInbox(tree) {
-  let inbox = tree.nodes.find((n) => n.id === 'inbox');
-  if (!inbox) {
-    const root = tree.nodes.find((n) => !n.parent) || tree.nodes[0];
-    inbox = {
-      id: 'inbox',
-      title: 'inbox',
-      status: 'idea',
-      kind: 'backlog',
-      parent: root ? root.id : undefined,
-      notes: 'sync 自动归集的孤儿规划文档',
-    };
-    tree.nodes.push(inbox);
+function rootNodeId(tree) {
+  const root = tree.nodes.find((n) => !n.parent || n.parent === null || n.parent === 'null')
+    || tree.nodes[0];
+  return root ? root.id : null;
+}
+
+function docDateKey(docPath) {
+  const m = String(docPath || '').match(/(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : '9999-99-99';
+}
+
+function earliestDocDate(n) {
+  const docs = Array.isArray(n.docs) ? n.docs : [];
+  let best = '9999-99-99';
+  for (const d of docs) {
+    const k = docDateKey(d);
+    if (k < best) best = k;
   }
-  return inbox;
+  return best;
+}
+
+function isDesignish(n) {
+  const id = String(n.id || '');
+  return n.kind === 'spec' || /design/i.test(id) || /-design$/i.test(id);
+}
+
+function nodeStem(n) {
+  return String(n.id || '').replace(/-design$/i, '');
+}
+
+function compareImplOrder(a, b) {
+  const da = earliestDocDate(a);
+  const db = earliestDocDate(b);
+  if (da !== db) return da.localeCompare(db);
+  const sa = nodeStem(a);
+  const sb = nodeStem(b);
+  if (sa !== sb) return sa.localeCompare(sb);
+  if (isDesignish(a) !== isDesignish(b)) return isDesignish(a) ? -1 : 1;
+  return String(a.id).localeCompare(String(b.id));
+}
+
+/** Rebuild peer dependsOn by impl order; keep deps outside the set; design→plan; no cycles. */
+function chainByImplOrder(nodes) {
+  const sorted = nodes.slice().sort(compareImplOrder);
+  const indexOf = new Map(sorted.map((n, i) => [n.id, i]));
+  for (let i = 0; i < sorted.length; i++) {
+    const n = sorted[i];
+    const external = (Array.isArray(n.dependsOn) ? n.dependsOn : [])
+      .filter((d) => d && d !== n.id && !indexOf.has(d));
+    let deps = external.slice();
+    if (!isDesignish(n) && indexOf.has(n.id + '-design') && indexOf.get(n.id + '-design') < i) {
+      deps.unshift(n.id + '-design');
+    } else if (i > 0) {
+      deps.unshift(sorted[i - 1].id);
+    }
+    const seen = new Set();
+    deps = deps.filter((d) => (seen.has(d) ? false : (seen.add(d), true)));
+    if (deps.length) n.dependsOn = deps;
+    else delete n.dependsOn;
+  }
+  return sorted;
+}
+
+/** Remove inbox; hang former children on root; chain by doc date. */
+function dissolveInbox(tree, changes) {
+  const inboxIdx = tree.nodes.findIndex((n) => n.id === 'inbox');
+  if (inboxIdx < 0) return;
+  const root = rootNodeId(tree);
+  const kids = tree.nodes.filter((n) => n.parent === 'inbox');
+  for (const n of kids) {
+    n.parent = root || undefined;
+  }
+  tree.nodes = tree.nodes.filter((n) => n.id !== 'inbox');
+  if (kids.length) chainByImplOrder(kids);
+  changes.push('移除 inbox；原孤儿挂根并按实现顺序串联 dependsOn');
 }
 
 function uniqueId(base, used) {
@@ -358,30 +418,52 @@ export function runSync(projectRoot) {
     }
   }
 
+  dissolveInbox(tree, changes);
+
   const { clearOrphans, ambiguousOrphans } = classifyOrphans(root, linked);
 
   const usedIds = new Set(tree.nodes.map((n) => n.id));
+  const rootId = rootNodeId(tree);
   let added = 0;
+  const created = [];
   if (clearOrphans.length) {
-    ensureInbox(tree);
-    for (const d of clearOrphans) {
+    const sortedDocs = clearOrphans.slice().sort((a, b) => {
+      const da = docDateKey(a);
+      const db = docDateKey(b);
+      if (da !== db) return da < db ? -1 : 1;
+      return a.localeCompare(b);
+    });
+    for (const d of sortedDocs) {
       const base = slugFromDoc(d);
       const id = uniqueId(base, usedIds);
       const title = titleFromDoc(path.join(root, d), base);
       const status = alignStatusFromDoc(d, readText(path.join(root, d)));
       const kind = d.includes('/plans/') ? 'plan' : d.includes('/specs/') ? 'spec' : 'backlog';
-      tree.nodes.push({
+      const node = {
         id,
         title,
         status: status === 'idea' ? 'proposed' : status,
         kind,
-        parent: 'inbox',
+        parent: rootId || undefined,
         docs: [d],
-        notes: 'sync 自动发现',
-      });
+        notes: 'sync 自动发现；按实现顺序挂根',
+      };
+      tree.nodes.push(node);
+      created.push(node);
       added++;
       changes.push(`新增节点 ${id} ← ${d}`);
     }
+    // Tip: last existing root child by impl order (excluding just-created)
+    const createdIds = new Set(created.map((n) => n.id));
+    const tips = tree.nodes
+      .filter((n) => n.parent === rootId && !createdIds.has(n.id) && n.id !== rootId)
+      .sort(compareImplOrder);
+    const tip = tips.length ? tips[tips.length - 1].id : null;
+    if (tip && created[0]) {
+      const d0 = Array.isArray(created[0].dependsOn) ? created[0].dependsOn : [];
+      if (!d0.includes(tip)) created[0].dependsOn = [tip, ...d0];
+    }
+    chainByImplOrder(created);
   }
 
   const git = gitLog(root);
@@ -404,7 +486,7 @@ export function runSync(projectRoot) {
     '',
     changes.length ? changes.map((c) => `- ${c}`).join('\n') : '- （无自动写入变更）',
     '',
-    '## 清晰孤儿文档（已尝试入库 inbox）',
+    '## 清晰孤儿文档（已挂根并按实现顺序串联）',
     '',
     clearOrphans.length ? clearOrphans.map((d) => `- ${d}`).join('\n') : '- （无）',
     '',

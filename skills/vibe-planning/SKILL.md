@@ -1,5 +1,6 @@
 ---
 name: vibe-planning
+version: 1.1.0
 description: >-
   Maintains a doc-backed dependency graph for product planning: indexes specs/plans
   in plan-tree.yaml, aligns cached status from linked docs, suggests next work from
@@ -9,9 +10,13 @@ description: >-
   align board, ghost nodes, or wants a roadmapped-style deps view without installing
   roadmapped.
 disable-model-invocation: true
+metadata:
+  version: "1.1.0"
 ---
 
 # vibe-planning
+
+**版本 1.1.0**
 
 文档（specs/plans/roadmaps）是**唯一真相源**。`plan-tree.yaml` 是索引/缓存，供看板展示与交互；文档与 YAML 冲突时以文档扫描结果为准。
 
@@ -103,8 +108,8 @@ node "<skill>/scripts/serve.mjs" "<projectRoot>" --port 7465 --open
 npx --yes github:Heliostest/vibe-planning serve "<projectRoot>" --open
 ```
 
-- 看板：`http://localhost:7465/`
-- 启动时打印 URL；`--open` 跨平台打开浏览器
+- 看板：默认 `http://localhost:7465/`；端口占用时自动 +1（最多尝试 30 次）
+- 启动时打印实际 URL；`--open` 跨平台打开浏览器
 - 零 npm 依赖；YAML 助手在 `scripts/lib/yaml-mini.mjs`
 - API：`GET /api/tree`、`GET/POST /api/layout`、`GET /api/health`、`GET /api/events`（SSE `reload`）、`POST /api/sync`、`POST /api/ai-sync-prompt`、`POST /api/promote-ghost`、`GET /api/sync-prompt`
 - 看板加载后拉 `/api/tree` + `/api/layout` 重绘；拖拽位置写入 `layout.json`；SSE + 每 2s 轮询
@@ -117,7 +122,7 @@ npx --yes github:Heliostest/vibe-planning serve "<projectRoot>" --open
 
 1. 扫描规划文档（`docs/**/*.md`，优先 specs/plans；跳过 `node_modules`/`.git`/`dist`/`board.html`）
 2. `git log --oneline -n 80`（及近期 name-only）
-3. 按 align 规则更新已有节点 status；清晰孤儿（`*-design.md` / `*-plan.md` / superpowers）挂到 `inbox`；模糊孤儿只写入提示
+3. 按 align 规则更新已有节点 status；清晰孤儿挂项目根，按文档日期（实现顺序）串联 `dependsOn`（无 inbox）；模糊孤儿只写入提示
 4. 写 `docs/vibe-planning/sync-prompt.md`（含中文可贴提示词）
 5. 保存 YAML；SSE 通知看板 reload
 
