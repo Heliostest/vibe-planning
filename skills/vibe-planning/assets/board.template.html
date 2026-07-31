@@ -454,7 +454,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s1.title': '欢迎使用 vibe-planning',
       'tour.s1.body': '这是文档驱动的依赖看板：specs/plans 是真相源，图只是索引。接下来几步带你过一遍常用操作。',
       'tour.s2.title': '状态色板',
-      'tour.s2.body': '节点颜色代表进度：构想→提议→规划→进行中→完成；虚线是延期/幽灵。右上角序号倒序向下排（每列 5 个）；悬停某序号会高亮同号节点。',
+      'tour.s2.body': '节点颜色代表进度：构想→提议→规划→进行中→完成；虚线是延期/幽灵。右上角序号倒序横排，满 5 个换到下一行；悬停某序号会突出同号节点。',
       'tour.s3.title': '依赖图',
       'tour.s3.body': '拖动节点可重排（父节点会带上子孙）；位置会自动保存。也可点「重排」一键按树结构排开。',
       'tour.s4.title': '同步',
@@ -536,7 +536,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s1.title': 'Welcome to vibe-planning',
       'tour.s1.body': 'A doc-backed dependency board: specs/plans are source of truth; the graph is an index. A few steps cover the basics.',
       'tour.s2.title': 'Status colors',
-      'tour.s2.body': 'Colors show progress: idea → proposed → planned → doing → done. Badges stack downward (newest first, 5 per column). Hover a badge to highlight nodes sharing that number.',
+      'tour.s2.body': 'Colors show progress: idea → proposed → planned → doing → done. Badges run left-to-right (newest first), wrapping down every 5. Hover a badge to spotlight nodes sharing that number.',
       'tour.s3.title': 'The graph',
       'tour.s3.body': 'Drag nodes to rearrange (parents move children). Positions persist. Or click Relayout for a tidy tree.',
       'tour.s4.title': 'Sync',
@@ -1130,29 +1130,13 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       var id = ids[i];
       var node = nodesDS.get(id);
       if (!node || node._ghost) continue;
+      if (nodeHasSeq(node, hoverBadgeSeq)) continue;
       var box = net.getBoundingBox(id);
       if (!box) continue;
-      var match = nodeHasSeq(node, hoverBadgeSeq);
       var pad = 10;
-      var x = box.left - pad;
-      var y = box.top - pad;
-      var w = box.right - box.left + pad * 2;
-      var h = box.bottom - box.top + pad * 2;
       ctx.save();
-      if (!match) {
-        ctx.fillStyle = dim;
-        ctx.fillRect(x, y, w, h);
-      } else {
-        ctx.shadowColor = 'rgba(245, 158, 11, 0.9)';
-        ctx.shadowBlur = 22;
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 3.5;
-        ctx.strokeRect(x, y, w, h);
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = 'rgba(253, 224, 71, 0.95)';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
-      }
+      ctx.fillStyle = dim;
+      ctx.fillRect(box.left - pad, box.top - pad, box.right - box.left + pad * 2, box.bottom - box.top + pad * 2);
       ctx.restore();
     }
   }
@@ -1161,7 +1145,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     if (!nodesDS || !ctx || !net) return;
     badgeHitBoxes = [];
     var ids = nodesDS.getIds();
-    var perCol = 5;
+    var perRow = 5;
     var gap = 24;
     var r = 11;
     for (var i = 0; i < ids.length; i++) {
@@ -1172,8 +1156,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       var box = net.getBoundingBox(ids[i]);
       if (!box) continue;
       for (var si = 0; si < seqs.length; si++) {
-        var row = si % perCol;
-        var col = Math.floor(si / perCol);
+        var col = si % perRow;
+        var row = Math.floor(si / perRow);
         var x = box.right + 3 + col * gap;
         var y = box.top - 3 + row * gap;
         var seq = seqs[si];
