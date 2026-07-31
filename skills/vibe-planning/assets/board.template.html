@@ -975,15 +975,40 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     ];
   }
 
+  function otherNodesSummary(excludeId) {
+    var all = (data.nodes || []).concat(data.ghosts || []);
+    var lines = [];
+    for (var i = 0; i < all.length; i++) {
+      var n = all[i];
+      if (!n || !n.id || n.id === excludeId || n.removed) continue;
+      lines.push('- ' + n.id + ': ' + (n.title || n.id) + ' [' + (n.status || 'idea') + ']');
+    }
+    return lines.length ? lines.join('\n') : '(none)';
+  }
+
+  function depMaintenanceLines(raw) {
+    var id = (raw && raw.id) || '';
+    return [
+      'Dependency maintenance (important): the board has NO UI to add/edit dependsOn edges; you must maintain them in docs/vibe-planning/plan-tree.yaml.',
+      'While working on this node, discover hard prerequisites from its docs/code/context and UPDATE this node\'s `dependsOn` (merge, do not blindly wipe).',
+      'Rules: use ONLY real node ids from "Existing nodes" below; no cycles; `parent` = grouping, `dependsOn` = hard deps; omit self/parent-only noise.',
+      'If you create child/ghost nodes that also depend on other existing nodes, put those ids in their `dependsOn` too (not only this node).',
+      'Existing nodes:',
+      otherNodesSummary(id),
+    ];
+  }
+
   function buildInspirePrompt(raw) {
     return [
       'vibe-planning:inspire-from',
       nodeContextLines(raw).join('\n'),
       '',
       'Invoke the vibe-planning skill. From this node, propose 3–6 deeper new feature candidates (like a feature idea list).',
-      'For each candidate: numbered title, one-line why, suggested kind, suggested status `idea`.',
-      'End with YAML ghost node snippets (id prefix ghost-, parent/dependsOn = this node) the user can confirm.',
-      'After you finish, feed results back by updating docs/vibe-planning/plan-tree.yaml (add ghosts then promote on confirm, OR real nodes with parent/dependsOn = this node). Never invent nonexistent doc paths.',
+      'For each candidate: numbered title, one-line why, suggested kind, suggested status `idea`, and any extra dependsOn beyond this node.',
+      'End with YAML ghost node snippets (id prefix ghost-, parent = this node; dependsOn = [this node, …other real ids if needed]) the user can confirm.',
+      'Also patch this node\'s dependsOn if you discover missing prerequisites.',
+      depMaintenanceLines(raw).join('\n'),
+      'After you finish, feed results back by updating docs/vibe-planning/plan-tree.yaml (add ghosts then promote on confirm, OR real nodes with parent/dependsOn). Never invent nonexistent doc paths.',
     ].join('\n');
   }
 
@@ -1019,7 +1044,9 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'Invoke the vibe-planning skill. Produce a detailed completion/verification plan for this node.',
       'Status-specific task (' + status + '): ' + advanceTaskForStatus(status),
       'Write concrete next steps. If you create a new design/plan file, say so and then link it in plan-tree docs[] (never invent nonexistent paths).',
-      'After you finish, feed results back by updating docs/vibe-planning/plan-tree.yaml (update status / attach new plan/spec paths if created; add ghost-then-promote OR real child nodes with parent/dependsOn = this node when appropriate).',
+      'As you clarify/implement, continuously discover and backfill dependency edges for this node (and new related nodes).',
+      depMaintenanceLines(r).join('\n'),
+      'After you finish, feed results back by updating docs/vibe-planning/plan-tree.yaml (update status / docs[] / dependsOn; add ghost-then-promote OR real child nodes with parent/dependsOn when appropriate).',
     ].join('\n');
   }
 
