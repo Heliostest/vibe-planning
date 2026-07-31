@@ -1897,6 +1897,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     var node = nodesDS.get(id);
     if (!node) return;
     copyText(buildInspirePrompt(node._raw || {}), 'toast.inspireCopied');
+    hideProposePop();
+    positionToolbar();
   });
 
   btnPropose.addEventListener('click', function (e) {
