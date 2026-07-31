@@ -327,6 +327,13 @@
         <option value="light" data-i18n="settings.theme.light">Light</option>
       </select>
     </div>
+    <div class="settings-row">
+      <label for="layoutModeSelect" data-i18n="settings.layout">Layout</label>
+      <select id="layoutModeSelect">
+        <option value="tree" data-i18n="settings.layout.tree">Tree</option>
+        <option value="radial" data-i18n="settings.layout.radial">Radial</option>
+      </select>
+    </div>
   </div>
 </div>
 <div id="promptModal" aria-hidden="true">
@@ -380,7 +387,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       sync: '同步',
       'sync.title': '扫描仓库并生成可贴的 AI 提示词',
       relayout: '重排',
-      'relayout.title': '按 parent / 依赖顺序一键重排节点位置',
+      'relayout.title': '按当前布局模式一键重排节点位置',
       'aiPrompt.title': '同步提示词',
       'aiPrompt.copy': '复制',
       'aiPrompt.close': '关闭',
@@ -391,6 +398,9 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'settings.theme': '外观',
       'settings.theme.dark': '深色',
       'settings.theme.light': '浅色',
+      'settings.layout': '排布模式',
+      'settings.layout.tree': '树状',
+      'settings.layout.radial': '圆形（蜘蛛网）',
       'status.idea': '构想',
       'status.proposed': '已提议',
       'status.planned': '已规划',
@@ -447,19 +457,19 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s4.title': '同步',
       'tour.s4.body': '扫描文档与 git，更新 plan-tree，并弹出可贴给 LLM 的提示词。一次搞定。',
       'tour.s5.title': '重排',
-      'tour.s5.body': '按 parent 与依赖顺序自动排布节点，减少连线交叉。拖拽仍可微调。',
+      'tour.s5.body': '一键重排。设置里可切换「树状」或「圆形蜘蛛网」两种排布。',
       'tour.s6.title': '节点详情与建议',
       'tour.s6.body': '选中节点后这里显示文档与依赖。「从此处建议」会复制一段请求，方便开新对话从该节点往下拆。',
       'tour.s7.title': '悬停工具栏',
       'tour.s7.body': '鼠标悬停节点会出现「启发 / 推进」：复制提示词，或把 ghost 升成正式构想节点。',
       'tour.s8.title': '设置与教程',
-      'tour.s8.body': '设置里可切换语言与浅色/深色。随时点「教程」可重播本引导。开始规划吧！',
+      'tour.s8.body': '设置里可切换语言、深浅色与排布模式（树状/圆形）。随时点「教程」可重播本引导。',
     },
     en: {
       sync: 'Sync',
       'sync.title': 'Scan repo and open an AI sync prompt',
       relayout: 'Relayout',
-      'relayout.title': 'Auto-arrange nodes by parent / dependency order',
+      'relayout.title': 'Auto-arrange nodes using the current layout mode',
       'aiPrompt.title': 'Sync prompt',
       'aiPrompt.copy': 'Copy',
       'aiPrompt.close': 'Close',
@@ -470,6 +480,9 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'settings.theme': 'Theme',
       'settings.theme.dark': 'Dark',
       'settings.theme.light': 'Light',
+      'settings.layout': 'Layout mode',
+      'settings.layout.tree': 'Tree',
+      'settings.layout.radial': 'Radial (spider)',
       'status.idea': 'Idea',
       'status.proposed': 'Proposed',
       'status.planned': 'Planned',
@@ -526,13 +539,13 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s4.title': 'Sync',
       'tour.s4.body': 'Scans docs + git, updates plan-tree, and opens a copyable LLM prompt. One button.',
       'tour.s5.title': 'Relayout',
-      'tour.s5.body': 'Auto-arranges nodes by parent and dependency order to reduce edge crossings. Drag to fine-tune.',
+      'tour.s5.body': 'One-click rearrange. Settings switch between Tree and Radial (spider-web) modes.',
       'tour.s6.title': 'Details & suggest',
       'tour.s6.body': 'Selected node shows docs and deps. “Suggest from here” copies a request you can paste to continue from that node.',
       'tour.s7.title': 'Hover toolbar',
       'tour.s7.body': 'Hover a node for Inspire / Advance: copy prompts, or promote a ghost into a real idea node.',
       'tour.s8.title': 'Settings & tutorial',
-      'tour.s8.body': 'Settings switch language and light/dark theme. Click Tutorial anytime to replay this guide. Happy planning!',
+      'tour.s8.body': 'Settings switch language, theme, and layout mode (tree / radial). Click Tutorial anytime to replay.',
     },
   };
 
@@ -572,6 +585,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     });
     var sel = document.getElementById('localeSelect');
     if (sel) sel.value = locale;
+    var layoutSel = document.getElementById('layoutModeSelect');
+    if (layoutSel) layoutSel.value = layoutMode;
     updateMeta();
     if (selected) showDetail(selected);
     else {
@@ -612,6 +627,63 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     try { localStorage.setItem('vibe-planning.theme', theme); } catch (e) { /* ignore */ }
     applyTheme();
     if (data) renderTree(data, { force: true });
+  }
+
+  let layoutMode = detectLayoutMode();
+
+  function detectLayoutMode() {
+    try {
+      var stored = localStorage.getItem('vibe-planning.layoutMode');
+      if (stored === 'radial' || stored === 'tree') return stored;
+    } catch (e) { /* ignore */ }
+    return 'tree';
+  }
+
+  function applyLayoutMode() {
+    var sel = document.getElementById('layoutModeSelect');
+    if (sel) sel.value = layoutMode;
+  }
+
+  function setLayoutMode(next) {
+    if (next !== 'tree' && next !== 'radial') return;
+    if (next === layoutMode) {
+      applyLayoutMode();
+      return;
+    }
+    layoutMode = next;
+    try { localStorage.setItem('vibe-planning.layoutMode', layoutMode); } catch (e) { /* ignore */ }
+    applyLayoutMode();
+    runRelayout();
+  }
+
+  async function runRelayout() {
+    var btn = document.getElementById('btnRelayout');
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('busy');
+    }
+    toast(t('toast.relayout'));
+    try {
+      const res = await fetch('/api/relayout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: layoutMode }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        toast(t('toast.relayoutFail'));
+        return;
+      }
+      toast(t('toast.relayoutDone') + ' · ' + (json.count || 0));
+      await reloadTree({ force: true, forceFit: true });
+    } catch (e) {
+      toast(t('toast.relayoutFail') + ': ' + (e && e.message ? e.message : e));
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('busy');
+      }
+    }
   }
 
   const STATUS_DARK = {
@@ -1704,11 +1776,15 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     else if (settingsModal.classList.contains('open')) closeSettings();
   });
   const themeSelect = document.getElementById('themeSelect');
+  const layoutModeSelect = document.getElementById('layoutModeSelect');
   themeSelect.addEventListener('change', function () {
     setTheme(themeSelect.value);
   });
   localeSelect.addEventListener('change', function () {
     setLocale(localeSelect.value);
+  });
+  layoutModeSelect.addEventListener('change', function () {
+    setLayoutMode(layoutModeSelect.value);
   });
 
   btnCopyPrompt.addEventListener('click', function () {
@@ -1802,25 +1878,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     }
   });
 
-  btnRelayout.addEventListener('click', async function () {
-    btnRelayout.disabled = true;
-    btnRelayout.classList.add('busy');
-    toast(t('toast.relayout'));
-    try {
-      const res = await fetch('/api/relayout', { method: 'POST' });
-      const json = await res.json();
-      if (!json.ok) {
-        toast(t('toast.relayoutFail'));
-        return;
-      }
-      toast(t('toast.relayoutDone') + ' · ' + (json.count || 0));
-      await reloadTree({ force: true, forceFit: true });
-    } catch (e) {
-      toast(t('toast.relayoutFail') + ': ' + (e && e.message ? e.message : e));
-    } finally {
-      btnRelayout.disabled = false;
-      btnRelayout.classList.remove('busy');
-    }
+  btnRelayout.addEventListener('click', function () {
+    runRelayout();
   });
 
   function liveEnabled() {
@@ -1841,6 +1900,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   }
 
   applyTheme();
+  applyLayoutMode();
   applyLocale();
 
   if (liveEnabled()) {

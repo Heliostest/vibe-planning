@@ -104,7 +104,7 @@ Docs contradict YAML → update YAML to match docs. Never invent doc paths.
 | `/api/health` | GET | `{ ok, projectRoot }` |
 | `/api/events` | GET | SSE; `reload` when yaml changes |
 | `/api/sync` | POST | run sync + AI prompt; `{ ok, updated, prompt, promptPath, summary }` |
-| `/api/relayout` | POST | auto-layout by parent/deps; writes `layout.json` |
+| `/api/relayout` | POST | body `{ mode: tree\|radial }`; writes `layout.json` |
 | `/api/sync-prompt` | GET | last sync-prompt.md text |
 
 Shared YAML: `scripts/lib/yaml-mini.mjs`  

@@ -1,6 +1,6 @@
 ---
 name: vibe-planning
-version: 1.1.2
+version: 1.1.3
 description: >-
   Maintains a doc-backed dependency graph for product planning: indexes specs/plans
   in plan-tree.yaml, aligns cached status from linked docs, suggests next work from
@@ -11,12 +11,12 @@ description: >-
   roadmapped.
 disable-model-invocation: true
 metadata:
-  version: "1.1.2"
+  version: "1.1.3"
 ---
 
 # vibe-planning
 
-**版本 1.1.2**
+**版本 1.1.3**
 
 文档（specs/plans/roadmaps）是**唯一真相源**。`plan-tree.yaml` 是索引/缓存，供看板展示与交互；文档与 YAML 冲突时以文档扫描结果为准。
 
@@ -125,7 +125,7 @@ npx --yes github:Heliostest/vibe-planning serve "<projectRoot>" --open
 4. 写 `sync-prompt.md` + `ai-sync-prompt.md`；响应带 `prompt`，看板弹窗可复制
 5. 保存 YAML；SSE 通知看板 reload
 
-看板 **「重排」** → `POST /api/relayout`：按 parent 树 + dependsOn 顺序自动写 `layout.json`。
+看板 **「重排」** → `POST /api/relayout` `{ mode: tree|radial }`：树状或圆形蜘蛛网；设置中切换（`vibe-planning.layoutMode`）。
 
 ### 7. render（可选静态导出）
 

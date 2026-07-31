@@ -38,7 +38,7 @@ function readVersion() {
       }
     } catch { /* try next */ }
   }
-  return '1.1.2';
+  return '1.1.3';
 }
 
 const VERSION = readVersion();
@@ -213,12 +213,19 @@ function main() {
       }
 
       if (req.method === 'POST' && pathname === '/api/relayout') {
+        const raw = await readBody(req);
+        let body = {};
+        try { body = raw ? JSON.parse(raw) : {}; } catch {
+          return sendJson(res, 400, { ok: false, error: 'invalid JSON' });
+        }
+        const mode = body && body.mode === 'radial' ? 'radial' : 'tree';
         const tree = loadTree(projectRoot);
-        const positions = autoLayout(tree.nodes, tree.ghosts);
+        const positions = autoLayout(tree.nodes, tree.ghosts, { mode });
         writeLayout(projectRoot, positions);
         broadcastReload();
         return sendJson(res, 200, {
           ok: true,
+          mode,
           count: Object.keys(positions).length,
         });
       }
