@@ -25,29 +25,44 @@ function sanitizeOrder(order) {
   const out = {};
   if (!order || typeof order !== 'object') return out;
   for (const id of Object.keys(order)) {
-    const n = Number(order[id]);
-    if (!Number.isFinite(n) || n < 1) continue;
-    out[id] = Math.floor(n);
+    const raw = order[id];
+    const list = Array.isArray(raw) ? raw : [raw];
+    const nums = [];
+    for (const v of list) {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < 1) continue;
+      const f = Math.floor(n);
+      if (!nums.includes(f)) nums.push(f);
+    }
+    nums.sort((a, b) => a - b);
+    if (nums.length) out[id] = nums;
   }
   return out;
 }
 
-export function mergeDoneOrder(projectRoot, partialOrder) {
+function atomicWrite(projectRoot, order) {
   const dir = path.join(projectRoot, 'docs', 'vibe-planning');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const current = readDoneOrder(projectRoot);
-  const merged = {
-    version: 1,
-    order: Object.assign({}, current.order, sanitizeOrder(partialOrder)),
-  };
+  const payload = { version: 1, order: sanitizeOrder(order) };
   const p = doneOrderPath(projectRoot);
   const tmp = p + '.' + process.pid + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(merged, null, 2) + '\n', 'utf8');
+  fs.writeFileSync(tmp, JSON.stringify(payload, null, 2) + '\n', 'utf8');
   try {
     fs.renameSync(tmp, p);
   } catch {
     try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch { /* ignore */ }
     fs.renameSync(tmp, p);
   }
-  return merged;
+  return payload;
+}
+
+export function mergeDoneOrder(projectRoot, partialOrder) {
+  const current = readDoneOrder(projectRoot);
+  const merged = Object.assign({}, current.order);
+  const partial = sanitizeOrder(partialOrder);
+  for (const id of Object.keys(partial)) {
+    const set = new Set([].concat(merged[id] || [], partial[id]));
+    merged[id] = Array.from(set).sort((a, b) => a - b);
+  }
+  return atomicWrite(projectRoot, merged);
 }

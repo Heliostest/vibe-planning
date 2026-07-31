@@ -123,7 +123,7 @@ Sync logic: `scripts/lib/sync-repo.mjs` → `runSync(projectRoot)`
 
 - vis-network hierarchical, direction `UD`, `physics: false`
 - `sortMethod: 'directed'`; larger `nodeSpacing` / `levelSeparation`
-- Header: 「同步」「重排」; aside: 「从此处建议」
+- Header: 「同步」「重排」; done badges may be `number[]` (self + ancestor rollup); aside: 「从此处建议」
 
 ## Static render (optional)
 

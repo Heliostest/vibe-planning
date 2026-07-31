@@ -451,7 +451,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s1.title': '欢迎使用 vibe-planning',
       'tour.s1.body': '这是文档驱动的依赖看板：specs/plans 是真相源，图只是索引。接下来几步带你过一遍常用操作。',
       'tour.s2.title': '状态色板',
-      'tour.s2.body': '节点颜色代表进度：构想→提议→规划→进行中→完成；虚线是延期/幽灵。完成节点右上角数字是第几个做完的。',
+      'tour.s2.body': '节点颜色代表进度：构想→提议→规划→进行中→完成；虚线是延期/幽灵。完成节点右上角可有多个序号（自身+子孙完成波次），每行最多 5 个。',
       'tour.s3.title': '依赖图',
       'tour.s3.body': '拖动节点可重排（父节点会带上子孙）；位置会自动保存。也可点「重排」一键按树结构排开。',
       'tour.s4.title': '同步',
@@ -533,7 +533,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s1.title': 'Welcome to vibe-planning',
       'tour.s1.body': 'A doc-backed dependency board: specs/plans are source of truth; the graph is an index. A few steps cover the basics.',
       'tour.s2.title': 'Status colors',
-      'tour.s2.body': 'Colors show progress: idea → proposed → planned → doing → done. Dashed = deferred/ghost. Yellow badges on done nodes mark completion order.',
+      'tour.s2.body': 'Colors show progress: idea → proposed → planned → doing → done. Dashed = deferred/ghost. Done nodes may show multiple yellow badges (self + descendant waves), wrapping every 5.',
       'tour.s3.title': 'The graph',
       'tour.s3.body': 'Drag nodes to rearrange (parents move children). Positions persist. Or click Relayout for a tidy tree.',
       'tour.s4.title': 'Sync',
@@ -1004,15 +1004,62 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     return best;
   }
 
+  function normalizeSeqList(v) {
+    var list = Array.isArray(v) ? v : (v == null ? [] : [v]);
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var n = Number(list[i]);
+      if (!Number.isFinite(n) || n < 1) continue;
+      var f = Math.floor(n);
+      if (out.indexOf(f) < 0) out.push(f);
+    }
+    out.sort(function (a, b) { return a - b; });
+    return out;
+  }
+
+  function appendDoneSeq(id, seq) {
+    var list = normalizeSeqList(doneOrderMap[id]);
+    if (list.indexOf(seq) >= 0) return false;
+    list.push(seq);
+    list.sort(function (a, b) { return a - b; });
+    doneOrderMap[id] = list;
+    return true;
+  }
+
+  function ancestorIds(nodeId, byId) {
+    var out = [];
+    var cur = byId[nodeId];
+    var guard = 0;
+    while (cur && cur.parent && byId[cur.parent] && guard < 64) {
+      out.push(cur.parent);
+      cur = byId[cur.parent];
+      guard += 1;
+    }
+    return out;
+  }
+
   function ensureDoneOrder(tree) {
     var dirty = false;
+    Object.keys(doneOrderMap).forEach(function (id) {
+      var list = normalizeSeqList(doneOrderMap[id]);
+      if (list.length) doneOrderMap[id] = list;
+      else delete doneOrderMap[id];
+    });
+
     var max = 0;
     Object.keys(doneOrderMap).forEach(function (id) {
-      var v = Number(doneOrderMap[id]);
-      if (Number.isFinite(v) && v > max) max = v;
+      normalizeSeqList(doneOrderMap[id]).forEach(function (v) {
+        if (v > max) max = v;
+      });
     });
+
+    var byId = {};
+    (tree.nodes || []).forEach(function (n) {
+      if (n && n.id) byId[n.id] = n;
+    });
+
     var missing = (tree.nodes || []).filter(function (n) {
-      return n && n.status === 'done' && n.id && doneOrderMap[n.id] == null;
+      return n && n.status === 'done' && n.id && normalizeSeqList(doneOrderMap[n.id]).length === 0;
     });
     missing.sort(function (a, b) {
       var da = earliestDocDate(a);
@@ -1020,11 +1067,26 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       if (da !== db) return da < db ? -1 : 1;
       return String(a.id).localeCompare(String(b.id));
     });
+
     for (var i = 0; i < missing.length; i++) {
       max += 1;
-      doneOrderMap[missing[i].id] = max;
-      dirty = true;
+      if (appendDoneSeq(missing[i].id, max)) dirty = true;
+      var ancs = ancestorIds(missing[i].id, byId);
+      for (var a = 0; a < ancs.length; a++) {
+        if (appendDoneSeq(ancs[a], max)) dirty = true;
+      }
     }
+
+    Object.keys(doneOrderMap).forEach(function (id) {
+      var seqs = normalizeSeqList(doneOrderMap[id]);
+      var ancs = ancestorIds(id, byId);
+      for (var s = 0; s < seqs.length; s++) {
+        for (var a = 0; a < ancs.length; a++) {
+          if (appendDoneSeq(ancs[a], seqs[s])) dirty = true;
+        }
+      }
+    });
+
     if (dirty && liveEnabled()) {
       fetch('/api/done-order', {
         method: 'POST',
@@ -1043,9 +1105,10 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       if (!res.ok) return;
       var json = await res.json();
       var order = json && json.order && typeof json.order === 'object' ? json.order : {};
+      doneOrderMap = {};
       Object.keys(order).forEach(function (id) {
-        var n = Number(order[id]);
-        if (Number.isFinite(n) && n >= 1) doneOrderMap[id] = Math.floor(n);
+        var list = normalizeSeqList(order[id]);
+        if (list.length) doneOrderMap[id] = list;
       });
     } catch (e) {
       console.warn('[vibe-planning] fetchDoneOrder failed', e);
@@ -1055,34 +1118,40 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   function drawDoneBadges(ctx, net) {
     if (!nodesDS || !ctx || !net) return;
     var ids = nodesDS.getIds();
+    var perRow = 5;
+    var gap = 24;
+    var r = 11;
     for (var i = 0; i < ids.length; i++) {
       var node = nodesDS.get(ids[i]);
-      if (!node || !node._raw || node._raw.status !== 'done') continue;
-      var seq = node._doneSeq;
-      if (seq == null) continue;
+      if (!node || node._ghost || !node._raw) continue;
+      var seqs = normalizeSeqList(node._doneSeq);
+      if (!seqs.length) continue;
       var box = net.getBoundingBox(ids[i]);
       if (!box) continue;
-      var r = 12;
-      var x = box.right + 3;
-      var y = box.top - 3;
-      var label = String(seq);
-      ctx.save();
-      ctx.shadowColor = 'rgba(245, 158, 11, 0.85)';
-      ctx.shadowBlur = 14;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = '#f59e0b';
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-      ctx.stroke();
-      ctx.fillStyle = '#0B0F19';
-      ctx.font = 'bold ' + (label.length > 2 ? 10 : 12) + 'px Segoe UI, PingFang SC, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(label, x, y + 0.5);
-      ctx.restore();
+      for (var si = 0; si < seqs.length; si++) {
+        var col = si % perRow;
+        var row = Math.floor(si / perRow);
+        var x = box.right + 3 + col * gap;
+        var y = box.top - 3 - row * gap;
+        var label = String(seqs[si]);
+        ctx.save();
+        ctx.shadowColor = 'rgba(245, 158, 11, 0.85)';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#f59e0b';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.stroke();
+        ctx.fillStyle = '#0B0F19';
+        ctx.font = 'bold ' + (label.length > 2 ? 9 : 11) + 'px Segoe UI, PingFang SC, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, x, y + 0.5);
+        ctx.restore();
+      }
     }
   }
 
@@ -1324,11 +1393,9 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       if (!n || !n.id || idSet.has(n.id)) return;
       idSet.add(n.id);
       const st = styleFor(n.status || 'idea', isGhost);
-      var doneSeq = (!isGhost && n.status === 'done' && doneOrderMap[n.id] != null)
-        ? doneOrderMap[n.id]
-        : null;
+      var doneSeqs = !isGhost ? normalizeSeqList(doneOrderMap[n.id]) : [];
       var tip = (isGhost ? '[ghost] ' : '') + (n.title || n.id) + '\n' + (n.status || '');
-      if (doneSeq != null) tip += '\n#' + doneSeq;
+      if (doneSeqs.length) tip += '\n#' + doneSeqs.join(' · #');
       nodesArr.push({
         id: n.id,
         label: n.title || n.id,
@@ -1336,7 +1403,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
         ...st,
         _raw: n,
         _ghost: !!isGhost,
-        _doneSeq: doneSeq,
+        _doneSeq: doneSeqs,
       });
     }
 
