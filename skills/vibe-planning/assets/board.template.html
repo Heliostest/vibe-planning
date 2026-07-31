@@ -546,10 +546,10 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'field.title': '标题',
       'field.status': '状态',
       'field.kind': '类型',
-      'field.parent': 'parent',
-      'field.dependsOn': 'dependsOn',
-      'field.docs': 'docs',
-      'field.notes': 'notes',
+      'field.parent': '父节点',
+      'field.dependsOn': '依赖',
+      'field.docs': '文档',
+      'field.notes': '备注',
       'meta.nodes': '节点',
       'meta.ghosts': '幽灵',
       'toolbar.inspire': '启发',
@@ -651,10 +651,10 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'field.title': 'Title',
       'field.status': 'Status',
       'field.kind': 'Kind',
-      'field.parent': 'parent',
-      'field.dependsOn': 'dependsOn',
-      'field.docs': 'docs',
-      'field.notes': 'notes',
+      'field.parent': 'Parent',
+      'field.dependsOn': 'Depends on',
+      'field.docs': 'Docs',
+      'field.notes': 'Notes',
       'meta.nodes': 'nodes',
       'meta.ghosts': 'ghosts',
       'toolbar.inspire': 'Inspire',
@@ -2658,6 +2658,29 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     });
   }
 
+  function lookupNodeRaw(id) {
+    if (!id || !data) return null;
+    var nodes = data.nodes || [];
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i] && nodes[i].id === id) return nodes[i];
+    }
+    var ghosts = data.ghosts || [];
+    for (var j = 0; j < ghosts.length; j++) {
+      if (ghosts[j] && ghosts[j].id === id) return ghosts[j];
+    }
+    return null;
+  }
+
+  function formatNodeRef(id) {
+    if (!id) return '';
+    var n = lookupNodeRaw(id);
+    var title = n && n.title ? String(n.title) : String(id);
+    if (n && n.title && n.title !== id) {
+      return title + ' <span style="color:var(--muted)">(' + id + ')</span>';
+    }
+    return title;
+  }
+
   function showDetail(node) {
     if (proposeLocked() && node && node.id !== proposeSourceId) return;
     if (proposeLocked() && !node) return;
@@ -2678,15 +2701,16 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     const docs = (r.docs || []).map(function (d) { return '<li>' + d + '</li>'; }).join('');
     const stCode = r.status || '';
     const stShown = stCode ? (statusLabel(stCode) + ' <span style="color:var(--muted)">(' + stCode + ')</span>') : '';
+    const depsShown = (r.dependsOn || []).map(formatNodeRef).join('<br>');
     detail.innerHTML =
       '<div class="field"><b>' + t('field.id') + '</b>' + r.id +
         (node._ghost ? ' <em>' + t('ghost.tag') + '</em>' : '') + '</div>' +
       '<div class="field"><b>' + t('field.title') + '</b>' + (r.title || '') + '</div>' +
       '<div class="field"><b>' + t('field.status') + '</b>' + stShown + '</div>' +
       (r.kind ? '<div class="field"><b>' + t('field.kind') + '</b>' + r.kind + '</div>' : '') +
-      (r.parent ? '<div class="field"><b>' + t('field.parent') + '</b>' + r.parent + '</div>' : '') +
-      (r.dependsOn && r.dependsOn.length
-        ? '<div class="field"><b>' + t('field.dependsOn') + '</b>' + r.dependsOn.join(', ') + '</div>' : '') +
+      (r.parent ? '<div class="field"><b>' + t('field.parent') + '</b>' + formatNodeRef(r.parent) + '</div>' : '') +
+      (depsShown
+        ? '<div class="field"><b>' + t('field.dependsOn') + '</b>' + depsShown + '</div>' : '') +
       (docs ? '<div class="field"><b>' + t('field.docs') + '</b><ul>' + docs + '</ul></div>' : '') +
       (r.notes ? '<div class="field"><b>' + t('field.notes') + '</b>' + r.notes + '</div>' : '');
     btn.disabled = !!node._ghost;
@@ -2695,7 +2719,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     if (gs.length) {
       ghostHint.hidden = false;
       ghostList.innerHTML = gs.map(function (g) {
-        return '<li>' + g.id + ' — ' + (g.title || '') + '</li>';
+        return '<li>' + (g.title || g.id) +
+          ' <span style="color:var(--muted)">(' + g.id + ')</span></li>';
       }).join('');
     } else {
       ghostHint.hidden = true;
