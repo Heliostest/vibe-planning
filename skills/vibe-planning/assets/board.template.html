@@ -85,13 +85,14 @@
   #btnSync:hover { background: #f59e0b; color: #0B0F19; border-color: #f59e0b; }
   #btnAiPrompt { white-space: nowrap; }
   #btnSettings { white-space: nowrap; }
+  #btnTour { white-space: nowrap; }
   #legend { display: flex; flex-wrap: wrap; gap: 8px 12px; }
   .chip {
     display: inline-flex; align-items: center; gap: 6px;
     font-size: 12px; color: var(--muted);
   }
   .swatch {
-    width: 12px; height: 12px; border-radius: 4px; border: 2px solid transparent;
+    width: 12px; height: 12px; border-radius: 8px; border: 2px solid transparent;
     background: #0f172a; box-shadow: 0 0 8px currentColor;
   }
   .swatch.idea { border-color: var(--st-idea); color: var(--st-idea); }
@@ -143,7 +144,7 @@
   aside ul { margin: 4px 0 0; padding-left: 18px; word-break: break-all; }
   button {
     appearance: none; border: 1px solid var(--border); background: var(--btn-bg); color: var(--text);
-    border-radius: 12px; padding: 8px 12px; font-size: 14px; cursor: pointer;
+    border-radius: 16px; padding: 8px 12px; font-size: 14px; cursor: pointer;
   }
   button:hover { background: var(--btn-hover); }
   button:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -157,7 +158,7 @@
   #toast {
     position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
     background: rgba(17, 24, 39, 0.95); border: 1px solid var(--border); padding: 10px 16px;
-    border-radius: 14px; font-size: 13px; opacity: 0; pointer-events: none;
+    border-radius: 18px; font-size: 13px; opacity: 0; pointer-events: none;
     transition: opacity .2s; max-width: 90vw; z-index: 20;
     box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 18px rgba(56,189,248,0.12);
   }
@@ -172,7 +173,7 @@
   }
   #settingsPanel, #promptPanel {
     position: relative; z-index: 1;
-    background: rgba(17, 24, 39, 0.96); border: 1px solid var(--border); border-radius: 20px;
+    background: rgba(17, 24, 39, 0.96); border: 1px solid var(--border); border-radius: 24px;
     padding: 18px 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 0 30px rgba(245,158,11,0.08);
     backdrop-filter: blur(18px);
   }
@@ -188,13 +189,13 @@
   #promptPanel h3 { margin: 0; }
   #settingsClose, #promptClose {
     padding: 4px 8px; font-size: 16px; line-height: 1; border: none; background: transparent;
-    color: var(--muted); border-radius: 10px;
+    color: var(--muted); border-radius: 14px;
   }
   #settingsClose:hover, #promptClose:hover { color: var(--text); background: var(--btn-hover); }
   #promptText {
     width: 100%; flex: 1; min-height: 280px; max-height: 60vh;
     resize: vertical; background: var(--input-bg); color: var(--text);
-    border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 18px; padding: 10px 12px;
     font: 13px/1.45 Consolas, "Cascadia Mono", "PingFang SC", monospace;
   }
   #promptActions { display: flex; gap: 8px; justify-content: flex-end; }
@@ -209,7 +210,7 @@
   .settings-row:last-child { margin-bottom: 0; }
   .settings-row select {
     appearance: none; background: var(--btn-bg); color: var(--text);
-    border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px;
+    border: 1px solid var(--border); border-radius: 16px; padding: 8px 10px;
     font-size: 14px; cursor: pointer;
   }
   .settings-row select:focus { outline: 1px solid var(--amber); }
@@ -217,6 +218,53 @@
     main { grid-template-columns: 1fr; grid-template-rows: 1fr 240px; }
     aside { border-left: 0; border-top: 1px solid var(--border); }
   }
+  #tourRoot {
+    position: fixed; inset: 0; z-index: 80; display: none;
+    pointer-events: none;
+  }
+  #tourRoot.open { display: block; pointer-events: auto; }
+  #tourDim {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    transition: clip-path 0.25s ease;
+  }
+  #tourSpot {
+    position: absolute; border-radius: 18px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62), 0 0 0 3px var(--amber), 0 0 28px rgba(245, 158, 11, 0.55);
+    pointer-events: none;
+    transition: top .2s ease, left .2s ease, width .2s ease, height .2s ease;
+  }
+  #tourCard {
+    position: absolute; z-index: 2;
+    width: min(360px, calc(100vw - 28px));
+    background: var(--panel-solid, #111827);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 16px 16px 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.45), 0 0 24px rgba(245,158,11,0.12);
+    pointer-events: auto;
+  }
+  html[data-theme="light"] #tourCard { background: #ffffff; }
+  #tourCard h4 {
+    margin: 0 0 8px; font-size: 15px; font-weight: 700;
+  }
+  #tourCard p {
+    margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: var(--muted);
+  }
+  #tourCard .tour-meta {
+    font-size: 12px; color: var(--muted); margin-bottom: 10px;
+  }
+  #tourCard .tour-actions {
+    display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;
+  }
+  #tourCard .tour-actions button { font-size: 13px; padding: 7px 12px; }
+  #tourNext {
+    background: rgba(245, 158, 11, 0.22); border-color: rgba(245, 158, 11, 0.55);
+    color: #fcd34d; font-weight: 700;
+  }
+  html[data-theme="light"] #tourNext { color: #92400e; }
+  #tourNext:hover { background: #f59e0b; color: #0B0F19; border-color: #f59e0b; }
 </style>
 </head>
 <body>
@@ -224,7 +272,7 @@
   <header>
     <h1 id="projectTitle">vibe-planning</h1>
     <span class="meta" id="projectMeta"></span>
-    <div id="legend">
+    <div id="legend" data-tour="legend">
       <span class="chip"><span class="swatch idea"></span><span data-i18n="status.idea">idea</span></span>
       <span class="chip"><span class="swatch proposed"></span><span data-i18n="status.proposed">proposed</span></span>
       <span class="chip"><span class="swatch planned"></span><span data-i18n="status.planned">planned</span></span>
@@ -235,18 +283,19 @@
       <span class="chip"><span class="swatch ghost"></span><span data-i18n="status.ghost">ghost</span></span>
     </div>
     <div class="actions">
-      <button type="button" id="btnSync" data-i18n="sync" data-i18n-title="sync.title">Sync repo</button>
-      <button type="button" id="btnAiPrompt" data-i18n="aiPrompt" data-i18n-title="aiPrompt.title">AI prompt</button>
-      <button type="button" id="btnSettings" data-i18n="settings">⚙ Settings</button>
+      <button type="button" id="btnSync" data-tour="sync" data-i18n="sync" data-i18n-title="sync.title">Sync repo</button>
+      <button type="button" id="btnAiPrompt" data-tour="ai" data-i18n="aiPrompt" data-i18n-title="aiPrompt.title">AI prompt</button>
+      <button type="button" id="btnTour" data-i18n="tour" data-i18n-title="tour.title">Tutorial</button>
+      <button type="button" id="btnSettings" data-tour="settings" data-i18n="settings">⚙ Settings</button>
       <a id="syncLink" href="/api/sync-prompt" target="_blank" hidden data-i18n="sync.promptLink">sync-prompt</a>
     </div>
   </header>
   <main>
-    <div id="graph"></div>
-    <aside>
+    <div id="graph" data-tour="graph"></div>
+    <aside data-tour="aside">
       <h2 data-i18n="detail.heading">Node</h2>
       <div id="detail" class="empty" data-i18n="detail.empty">Click a node for details</div>
-      <button id="btnSuggest" disabled data-i18n="suggest">Suggest from here</button>
+      <button id="btnSuggest" data-tour="suggest" disabled data-i18n="suggest">Suggest from here</button>
       <div class="field" id="ghostHint" hidden>
         <b data-i18n="ghost.preview">Ghost preview</b>
         <ul id="ghostList"></ul>
@@ -293,6 +342,20 @@
     <div id="promptActions">
       <button type="button" id="btnPromptClose" data-i18n="aiPrompt.close">Close</button>
       <button type="button" id="btnCopyPrompt" data-i18n="aiPrompt.copy">Copy</button>
+    </div>
+  </div>
+</div>
+<div id="tourRoot" aria-hidden="true">
+  <div id="tourDim"></div>
+  <div id="tourSpot" hidden></div>
+  <div id="tourCard" role="dialog" aria-modal="true" aria-labelledby="tourCardTitle">
+    <div class="tour-meta" id="tourStepMeta"></div>
+    <h4 id="tourCardTitle"></h4>
+    <p id="tourCardBody"></p>
+    <div class="tour-actions">
+      <button type="button" id="tourSkip" data-i18n="tour.skip">Skip</button>
+      <button type="button" id="tourPrev" data-i18n="tour.prev">Back</button>
+      <button type="button" id="tourNext" data-i18n="tour.next">Next</button>
     </div>
   </div>
 </div>
@@ -370,6 +433,29 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'toast.generating': '正在生成 AI 提示词…',
       'toast.copied': '已复制到剪贴板',
       'toast.fail': '生成失败',
+      tour: '教程',
+      'tour.title': '重播使用教程',
+      'tour.skip': '跳过',
+      'tour.prev': '上一步',
+      'tour.next': '下一步',
+      'tour.done': '完成',
+      'tour.step': '第 {n} / {total} 步',
+      'tour.s1.title': '欢迎使用 vibe-planning',
+      'tour.s1.body': '这是文档驱动的依赖看板：specs/plans 是真相源，图只是索引。接下来几步带你过一遍常用操作。',
+      'tour.s2.title': '状态色板',
+      'tour.s2.body': '节点颜色代表进度：构想→提议→规划→进行中→完成；虚线是延期/幽灵。完成节点右上角数字是第几个做完的。',
+      'tour.s3.title': '依赖图',
+      'tour.s3.body': '拖动节点可重排（父节点会带上子孙）；位置会自动保存。点击节点看右侧详情。',
+      'tour.s4.title': '同步仓库',
+      'tour.s4.body': '扫描项目文档与 git，启发式更新 plan-tree：对齐状态、挂上新发现的 design/plan（按实现顺序连边）。',
+      'tour.s5.title': 'AI 提示词',
+      'tour.s5.body': '生成可贴给 LLM 的详细同步提示（只读扫描，不自动改 YAML）。让 AI 帮你整理树后再刷新看板。',
+      'tour.s6.title': '节点详情与建议',
+      'tour.s6.body': '选中节点后这里显示文档与依赖。「从此处建议」会复制一段请求，方便开新对话从该节点往下拆。',
+      'tour.s7.title': '悬停工具栏',
+      'tour.s7.body': '鼠标悬停节点会出现「启发 / 推进」：复制提示词，或把 ghost 升成正式构想节点。',
+      'tour.s8.title': '设置与教程',
+      'tour.s8.body': '设置里可切换语言与浅色/深色。随时点「教程」可重播本引导。开始规划吧！',
     },
     en: {
       sync: 'Sync repo',
@@ -425,6 +511,29 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'toast.generating': 'Generating AI prompt…',
       'toast.copied': 'Copied to clipboard',
       'toast.fail': 'Failed to generate',
+      tour: 'Tutorial',
+      'tour.title': 'Replay the tutorial',
+      'tour.skip': 'Skip',
+      'tour.prev': 'Back',
+      'tour.next': 'Next',
+      'tour.done': 'Done',
+      'tour.step': 'Step {n} / {total}',
+      'tour.s1.title': 'Welcome to vibe-planning',
+      'tour.s1.body': 'A doc-backed dependency board: specs/plans are source of truth; the graph is an index. A few steps cover the basics.',
+      'tour.s2.title': 'Status colors',
+      'tour.s2.body': 'Colors show progress: idea → proposed → planned → doing → done. Dashed = deferred/ghost. Yellow badges on done nodes mark completion order.',
+      'tour.s3.title': 'The graph',
+      'tour.s3.body': 'Drag nodes to rearrange (parents move children). Positions persist. Click a node for the side panel.',
+      'tour.s4.title': 'Sync repo',
+      'tour.s4.body': 'Scans docs + git and heuristically updates plan-tree: align status and attach new design/plan docs in implementation order.',
+      'tour.s5.title': 'AI prompt',
+      'tour.s5.body': 'Builds a detailed LLM prompt from a read-only scan (does not edit YAML). Paste it into a chat, then refresh the board.',
+      'tour.s6.title': 'Details & suggest',
+      'tour.s6.body': 'Selected node shows docs and deps. “Suggest from here” copies a request you can paste to continue from that node.',
+      'tour.s7.title': 'Hover toolbar',
+      'tour.s7.body': 'Hover a node for Inspire / Advance: copy prompts, or promote a ghost into a real idea node.',
+      'tour.s8.title': 'Settings & tutorial',
+      'tour.s8.body': 'Settings switch language and light/dark theme. Click Tutorial anytime to replay this guide. Happy planning!',
     },
   };
 
@@ -558,7 +667,10 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       },
       borderWidth: 4,
       borderWidthSelected: 5,
-      shapeProperties: s.dashes ? { borderDashes: [7, 5] } : { borderDashes: false },
+      borderRadius: 14,
+      shapeProperties: s.dashes
+        ? { borderDashes: [7, 5], borderRadius: 14 }
+        : { borderDashes: false, borderRadius: 14 },
       shadow: {
         enabled: true,
         color: s.glow || 'rgba(255,255,255,0.35)',
@@ -1238,6 +1350,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       shape: 'box',
       margin: 12,
       borderWidth: 4,
+      borderRadius: 14,
       widthConstraint: { minimum: 96, maximum: 168 },
       heightConstraint: { minimum: 40 },
       shadow: true,
@@ -1414,6 +1527,152 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   const btnPromptClose = document.getElementById('btnPromptClose');
   const btnCopyPrompt = document.getElementById('btnCopyPrompt');
   const promptText = document.getElementById('promptText');
+  const btnTour = document.getElementById('btnTour');
+  const tourRoot = document.getElementById('tourRoot');
+  const tourDim = document.getElementById('tourDim');
+  const tourSpot = document.getElementById('tourSpot');
+  const tourCard = document.getElementById('tourCard');
+  const tourCardTitle = document.getElementById('tourCardTitle');
+  const tourCardBody = document.getElementById('tourCardBody');
+  const tourStepMeta = document.getElementById('tourStepMeta');
+  const tourSkip = document.getElementById('tourSkip');
+  const tourPrev = document.getElementById('tourPrev');
+  const tourNext = document.getElementById('tourNext');
+
+  var TOUR_STEPS = [
+    { key: 's1', target: null },
+    { key: 's2', target: '[data-tour="legend"]' },
+    { key: 's3', target: '[data-tour="graph"]' },
+    { key: 's4', target: '[data-tour="sync"]' },
+    { key: 's5', target: '[data-tour="ai"]' },
+    { key: 's6', target: '[data-tour="aside"]' },
+    { key: 's7', target: '[data-tour="graph"]' },
+    { key: 's8', target: '[data-tour="settings"]' },
+  ];
+  var tourIndex = 0;
+  var tourOpen = false;
+  var tourAutoTried = false;
+  var TOUR_SEEN_KEY = 'vibe-planning.tour.seen';
+
+  function markTourSeen() {
+    try { localStorage.setItem(TOUR_SEEN_KEY, '1'); } catch (e) { /* ignore */ }
+  }
+
+  function hasSeenTour() {
+    try { return localStorage.getItem(TOUR_SEEN_KEY) === '1'; } catch (e) { return false; }
+  }
+
+  function placeTourCard(rect) {
+    var pad = 14;
+    var cw = tourCard.offsetWidth || 360;
+    var ch = tourCard.offsetHeight || 200;
+    var left;
+    var top;
+    if (!rect) {
+      left = Math.max(pad, (window.innerWidth - cw) / 2);
+      top = Math.max(pad, (window.innerHeight - ch) / 2);
+    } else {
+      left = rect.left + rect.width / 2 - cw / 2;
+      top = rect.bottom + 12;
+      if (top + ch > window.innerHeight - pad) top = rect.top - ch - 12;
+      if (top < pad) top = pad;
+      if (left < pad) left = pad;
+      if (left + cw > window.innerWidth - pad) left = window.innerWidth - cw - pad;
+    }
+    tourCard.style.left = left + 'px';
+    tourCard.style.top = top + 'px';
+  }
+
+  function renderTourStep() {
+    if (!tourOpen) return;
+    var step = TOUR_STEPS[tourIndex];
+    var total = TOUR_STEPS.length;
+    tourStepMeta.textContent = t('tour.step').replace('{n}', String(tourIndex + 1)).replace('{total}', String(total));
+    tourCardTitle.textContent = t('tour.' + step.key + '.title');
+    tourCardBody.textContent = t('tour.' + step.key + '.body');
+    tourPrev.disabled = tourIndex <= 0;
+    tourNext.textContent = tourIndex >= total - 1 ? t('tour.done') : t('tour.next');
+    tourSkip.textContent = t('tour.skip');
+    tourPrev.textContent = t('tour.prev');
+
+    var el = step.target ? document.querySelector(step.target) : null;
+    var rect = null;
+    if (el) {
+      rect = el.getBoundingClientRect();
+      var m = 6;
+      tourSpot.hidden = false;
+      tourDim.style.opacity = '0';
+      tourSpot.style.left = Math.max(0, rect.left - m) + 'px';
+      tourSpot.style.top = Math.max(0, rect.top - m) + 'px';
+      tourSpot.style.width = Math.min(window.innerWidth, rect.width + m * 2) + 'px';
+      tourSpot.style.height = Math.min(window.innerHeight, rect.height + m * 2) + 'px';
+    } else {
+      tourSpot.hidden = true;
+      tourDim.style.opacity = '1';
+    }
+    placeTourCard(rect);
+  }
+
+  function openTour(fromStart) {
+    tourIndex = fromStart ? 0 : tourIndex;
+    tourOpen = true;
+    tourRoot.classList.add('open');
+    tourRoot.setAttribute('aria-hidden', 'false');
+    renderTourStep();
+    try { tourNext.focus(); } catch (e) { /* ignore */ }
+  }
+
+  function closeTour(markSeen) {
+    tourOpen = false;
+    tourRoot.classList.remove('open');
+    tourRoot.setAttribute('aria-hidden', 'true');
+    tourSpot.hidden = true;
+    if (markSeen) markTourSeen();
+  }
+
+  function maybeAutoTour() {
+    if (tourAutoTried || hasSeenTour()) return;
+    tourAutoTried = true;
+    setTimeout(function () { openTour(true); }, 900);
+  }
+
+  tourSkip.addEventListener('click', function () { closeTour(true); });
+  tourPrev.addEventListener('click', function () {
+    if (tourIndex > 0) {
+      tourIndex -= 1;
+      renderTourStep();
+    }
+  });
+  tourNext.addEventListener('click', function () {
+    if (tourIndex >= TOUR_STEPS.length - 1) {
+      closeTour(true);
+      return;
+    }
+    tourIndex += 1;
+    renderTourStep();
+  });
+  window.addEventListener('resize', function () {
+    if (tourOpen) renderTourStep();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!tourOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeTour(true); }
+    if (e.key === 'ArrowRight' || e.key === 'Enter') {
+      e.preventDefault();
+      tourNext.click();
+    }
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      tourPrev.click();
+    }
+  });
+  btnTour.addEventListener('click', function () { openTour(true); });
+
+  var _applyLocale = applyLocale;
+  applyLocale = function () {
+    _applyLocale();
+    if (tourOpen) renderTourStep();
+  };
 
   function openSettings() {
     settingsModal.classList.add('open');
@@ -1586,6 +1845,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       await fetchDoneOrder();
       ensureDoneOrder(tree);
       renderTree(tree, opts || {});
+      maybeAutoTour();
     } catch { /* static file:// bootstrap */ }
   }
 
@@ -1602,6 +1862,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     setInterval(function () { reloadTree(); }, 10000);
   } else {
     renderTree(data, { force: true, forcePhysics: true, forceFit: true });
+    maybeAutoTour();
   }
 })();
 </script>
