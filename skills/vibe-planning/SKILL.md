@@ -1,6 +1,6 @@
 ﻿---
 name: vibe-planning
-version: 1.1.18
+version: 1.1.19
 description: >-
   Maintains a doc-backed dependency graph for product planning: indexes specs/plans
   in plan-tree.yaml, aligns cached status from linked docs, suggests next work from
@@ -11,12 +11,12 @@ description: >-
   roadmapped.
 disable-model-invocation: true
 metadata:
-  version: "1.1.18"
+  version: "1.1.19"
 ---
 
 # vibe-planning
 
-**版本 1.1.18**
+**版本 1.1.19**
 
 文档（specs/plans/roadmaps）是**唯一真相源**。`plan-tree.yaml` 是索引/缓存，供看板展示与交互；文档与 YAML 冲突时以文档扫描结果为准。
 
@@ -139,7 +139,7 @@ node "<skill>/scripts/render-board.mjs" "<project>/docs/vibe-planning/plan-tree.
 
 - 主视图：vis-network 依赖图（barnesHut 稳定后冻结）；`parent` 实线、`dependsOn` 淡虚线
 - 节点颜色按 status（见 reference 色板）
-- **节点悬停/选中**：上方浮动工具栏「启发 / Inspire」与「推进 / Advance」；ghost 上「推进→构想」经 `/api/promote-ghost` 升为 `status: idea` 正式节点；普通节点复制 `vibe-planning:inspire-from` / `vibe-planning:advance-from` 提示词（含现有节点列表，要求 AI 在修改过程中补全 `dependsOn`，因看板无手动加边 UI）；工具栏随 pan/zoom 跟随
+- **节点悬停/选中**：上方浮动工具栏「提议 / 推进 / 删除」；「提议」弹层左下角为「启发」；ghost 上「推进→构想」经 `/api/promote-ghost` 升为正式节点；提示词含现有节点列表并要求补全 `dependsOn`
 - 标题栏：**「同步」**、**「重排」**；侧栏：**「从此处建议」**（复用 inspire 提示词）
 - 设置弹窗可选界面语言（`zh-CN`/`en`，`localStorage`：`vibe-planning.locale`）；节点内容语言不变
 - 同步后弹窗展示可贴 LLM 提示词；meta/toast 显示摘要

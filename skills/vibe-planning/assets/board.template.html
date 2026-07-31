@@ -172,8 +172,19 @@
     border: 1px solid var(--border); border-radius: 10px;
     padding: 8px 10px; font: 13px/1.4 inherit;
   }
-  #proposeActions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  #proposeActions {
+    display: flex; gap: 8px; align-items: center;
+    justify-content: space-between; margin-top: 8px;
+  }
+  #proposeActionsRight { display: flex; gap: 8px; align-items: center; }
   #proposeActions button { font-size: 12px; padding: 6px 10px; border-radius: 10px; }
+  #btnInspire {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(245, 158, 11, 0.18); border-color: rgba(245, 158, 11, 0.5);
+    color: #fcd34d; font-weight: 700;
+  }
+  #btnInspire:hover { background: #f59e0b; color: #0B0F19; border-color: #f59e0b; }
+  #btnInspire svg { width: 14px; height: 14px; display: block; }
   #proposeSubmit {
     background: rgba(245, 158, 11, 0.22); border-color: rgba(245, 158, 11, 0.55);
     color: #fcd34d; font-weight: 700;
@@ -391,12 +402,7 @@
   </main>
 </div>
 <div id="nodeToolbar" role="toolbar" aria-label="Node actions" hidden>
-  <button type="button" id="btnInspire" class="primary icon-btn" data-tip="inspire" aria-label="启发">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
-    </svg>
-  </button>
-  <button type="button" id="btnPropose" class="icon-btn" data-tip="propose" aria-label="提议">
+  <button type="button" id="btnPropose" class="primary icon-btn" data-tip="propose" aria-label="提议">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
     </svg>
@@ -420,8 +426,16 @@
   <label for="proposeInput" data-i18n="propose.label">基于此节点，描述要做的新功能</label>
   <textarea id="proposeInput" rows="3" data-i18n-placeholder="propose.placeholder" placeholder="例如：在详情侧栏增加导出报告…"></textarea>
   <div id="proposeActions">
-    <button type="button" id="proposeCancel" data-i18n="propose.cancel">取消</button>
-    <button type="button" id="proposeSubmit" data-i18n="propose.submit">生成 Ghost</button>
+    <button type="button" id="btnInspire" data-tip="inspire" aria-label="启发">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
+      </svg>
+      <span data-i18n="toolbar.inspire">启发</span>
+    </button>
+    <div id="proposeActionsRight">
+      <button type="button" id="proposeCancel" data-i18n="propose.cancel">取消</button>
+      <button type="button" id="proposeSubmit" data-i18n="propose.submit">生成 Ghost</button>
+    </div>
   </div>
 </div>
 <div id="toolbarTip" aria-hidden="true">
@@ -612,7 +626,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s6.title': '节点详情与建议',
       'tour.s6.body': '选中节点后这里显示文档与依赖。「从此处建议」会复制一段请求，方便开新对话从该节点往下拆。',
       'tour.s7.title': '悬停工具栏',
-      'tour.s7.body': '鼠标悬停节点会出现「启发 / 推进」：复制提示词，或把 ghost 升成正式构想节点。',
+      'tour.s7.body': '鼠标悬停节点会出现「提议 / 推进 / 删除」；点「提议」可写新功能，左下角「启发」可复制发散提示词。',
       'tour.s8.title': '设置与教程',
       'tour.s8.body': '设置里可切换语言、深浅色与排布模式（树状/圆形）。随时点「教程」可重播本引导。',
     },
@@ -717,7 +731,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s6.title': 'Details & suggest',
       'tour.s6.body': 'Selected node shows docs and deps. “Suggest from here” copies a request you can paste to continue from that node.',
       'tour.s7.title': 'Hover toolbar',
-      'tour.s7.body': 'Hover a node for Inspire / Advance: copy prompts, or promote a ghost into a real idea node.',
+      'tour.s7.body': 'Hover a node for Propose / Advance / Delete. Propose opens a draft box; Inspire sits at its bottom-left to copy a brainstorm prompt.',
       'tour.s8.title': 'Settings & tutorial',
       'tour.s8.body': 'Settings switch language, theme, and layout mode (tree / radial). Click Tutorial anytime to replay.',
     },
@@ -1190,7 +1204,6 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     proposeSourceId = null;
     proposePop.classList.remove('show');
     proposePop.setAttribute('aria-hidden', 'true');
-    btnInspire.disabled = false;
     btnPropose.disabled = false;
     btnAdvance.disabled = false;
     btnDelete.disabled = false;
@@ -1211,7 +1224,6 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     proposeInput.value = '';
     proposePop.classList.add('show');
     proposePop.setAttribute('aria-hidden', 'false');
-    btnInspire.disabled = true;
     btnPropose.disabled = true;
     btnAdvance.disabled = true;
     btnDelete.disabled = true;
@@ -1847,7 +1859,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     scheduleHideToolbar();
   });
 
-  [btnInspire, btnPropose, btnAdvance, btnDelete].forEach(function (btn) {
+  [btnPropose, btnAdvance, btnDelete, btnInspire].forEach(function (btn) {
     btn.addEventListener('mouseenter', function () {
       clearBlurTimer();
       startToolbarTip(btn);
@@ -1879,9 +1891,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
 
   btnInspire.addEventListener('click', function (e) {
     e.stopPropagation();
-    if (proposeLocked()) return;
     hideToolbarTip();
-    var id = toolbarNodeId || activeToolbarId();
+    var id = proposeSourceId || toolbarNodeId || activeToolbarId();
     if (!id || !nodesDS) return;
     var node = nodesDS.get(id);
     if (!node) return;
