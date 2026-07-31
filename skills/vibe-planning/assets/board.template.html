@@ -114,25 +114,57 @@
   }
   #nodeToolbar {
     position: absolute; z-index: 10; display: none;
-    gap: 6px; align-items: center;
-    padding: 5px; border-radius: 999px;
+    gap: 4px; align-items: center;
+    padding: 4px; border-radius: 999px;
     background: rgba(17, 24, 39, 0.94); backdrop-filter: blur(14px);
     border: 1px solid var(--border);
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 20px rgba(245, 158, 11, 0.12);
     pointer-events: auto; white-space: nowrap;
     transform: translate(-50%, -100%);
   }
+  html[data-theme="light"] #nodeToolbar {
+    background: rgba(255, 255, 255, 0.94);
+  }
   #nodeToolbar.show { display: inline-flex; }
-  #nodeToolbar button {
-    border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600;
-    background: var(--btn-bg); border-color: var(--border);
+  #nodeToolbar button.icon-btn {
+    width: 32px; height: 32px; padding: 0; border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--btn-bg); border-color: var(--border); color: var(--text);
   }
-  #nodeToolbar button:hover { background: var(--btn-hover); }
-  #nodeToolbar button.primary {
+  #nodeToolbar button.icon-btn:hover { background: var(--btn-hover); }
+  #nodeToolbar button.icon-btn.primary {
     background: rgba(245, 158, 11, 0.22); border-color: rgba(245, 158, 11, 0.55);
-    color: #fcd34d; font-weight: 700;
+    color: #fcd34d;
   }
-  #nodeToolbar button.primary:hover { background: #f59e0b; color: #0B0F19; border-color: #f59e0b; }
+  #nodeToolbar button.icon-btn.primary:hover { background: #f59e0b; color: #0B0F19; border-color: #f59e0b; }
+  #nodeToolbar button.icon-btn svg { width: 16px; height: 16px; display: block; }
+  #toolbarTip {
+    position: fixed; z-index: 30; display: none;
+    min-width: 72px; max-width: min(320px, 70vw);
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: var(--panel-solid); color: var(--text);
+    border: 1px solid var(--border);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    transform-origin: top left;
+  }
+  #toolbarTip.show { display: block; }
+  #toolbarTip .tip-name {
+    font-size: 13px; font-weight: 700; line-height: 1.3;
+    white-space: nowrap;
+  }
+  #toolbarTip .tip-purpose,
+  #toolbarTip .tip-how {
+    display: none;
+    margin-top: 6px;
+    font-size: 12px; line-height: 1.45; color: var(--muted);
+    white-space: normal;
+  }
+  #toolbarTip .tip-how { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+  #toolbarTip.stage-2 .tip-purpose,
+  #toolbarTip.stage-3 .tip-purpose { display: block; }
+  #toolbarTip.stage-3 .tip-how { display: block; }
   aside {
     border-left: 1px solid var(--border); background: var(--panel); backdrop-filter: blur(16px);
     padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 12px;
@@ -302,8 +334,21 @@
   </main>
 </div>
 <div id="nodeToolbar" role="toolbar" aria-label="Node actions" hidden>
-  <button type="button" id="btnInspire" class="primary" data-i18n="toolbar.inspire">启发</button>
-  <button type="button" id="btnAdvance" data-i18n="toolbar.advance">推进</button>
+  <button type="button" id="btnInspire" class="primary icon-btn" data-tip="inspire" aria-label="启发">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
+    </svg>
+  </button>
+  <button type="button" id="btnAdvance" class="icon-btn" data-tip="advance" aria-label="推进">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>
+    </svg>
+  </button>
+</div>
+<div id="toolbarTip" aria-hidden="true">
+  <div class="tip-name" id="toolbarTipName"></div>
+  <div class="tip-purpose" id="toolbarTipPurpose"></div>
+  <div class="tip-how" id="toolbarTipHow"></div>
 </div>
 <div id="toast"></div>
 <div id="settingsModal" aria-hidden="true">
@@ -428,8 +473,14 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'meta.nodes': '节点',
       'meta.ghosts': '幽灵',
       'toolbar.inspire': '启发',
+      'toolbar.inspire.purpose': '从当前节点发散下一步构想与分支方向。',
+      'toolbar.inspire.how': '点击后复制「启发」提示词到剪贴板，粘贴到新对话即可继续 brainstorm。',
       'toolbar.advance': '推进',
+      'toolbar.advance.purpose': '推进该节点的下一步实施或设计工作。',
+      'toolbar.advance.how': '点击后复制「推进」提示词到剪贴板，粘贴到新对话按提示执行。',
       'toolbar.advanceGhost': '推进→构想',
+      'toolbar.advanceGhost.purpose': '把幽灵节点升为正式构想节点，写入计划树。',
+      'toolbar.advanceGhost.how': '点击后调用晋升接口：去掉 ghost- 前缀，以 status: idea 写入 nodes。',
       'toast.suggestCopied': '已复制「从此处建议」请求',
       'toast.inspireCopied': '已复制「启发」提示词',
       'toast.advanceCopied': '已复制「推进」提示词',
@@ -510,8 +561,14 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'meta.nodes': 'nodes',
       'meta.ghosts': 'ghosts',
       'toolbar.inspire': 'Inspire',
+      'toolbar.inspire.purpose': 'Brainstorm next ideas and branches from this node.',
+      'toolbar.inspire.how': 'Click to copy an Inspire prompt; paste it into a new chat to continue.',
       'toolbar.advance': 'Advance',
+      'toolbar.advance.purpose': 'Move this node forward into the next design or implementation step.',
+      'toolbar.advance.how': 'Click to copy an Advance prompt; paste it into a new chat and follow it.',
       'toolbar.advanceGhost': 'Advance → Idea',
+      'toolbar.advanceGhost.purpose': 'Promote a ghost into a real idea node in the plan tree.',
+      'toolbar.advanceGhost.how': 'Click to promote: strip the ghost- prefix and insert status: idea into nodes.',
       'toast.suggestCopied': 'Copied suggest-from request',
       'toast.inspireCopied': 'Copied inspire prompt',
       'toast.advanceCopied': 'Copied advance prompt',
@@ -590,6 +647,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     if (sel) sel.value = locale;
     var layoutSel = document.getElementById('layoutModeSelect');
     if (layoutSel) layoutSel.value = layoutMode;
+    syncToolbarButtonLabels();
+    if (tipBtn && tipStage >= 1) showToolbarTip(tipBtn, tipStage);
     updateMeta();
     if (selected) showDetail(selected);
     else {
@@ -843,6 +902,13 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   const nodeToolbar = document.getElementById('nodeToolbar');
   const btnInspire = document.getElementById('btnInspire');
   const btnAdvance = document.getElementById('btnAdvance');
+  const toolbarTip = document.getElementById('toolbarTip');
+  const toolbarTipName = document.getElementById('toolbarTipName');
+  const toolbarTipPurpose = document.getElementById('toolbarTipPurpose');
+  const toolbarTipHow = document.getElementById('toolbarTipHow');
+  var tipTimers = [];
+  var tipStage = 0;
+  var tipBtn = null;
 
   function activeToolbarId() {
     if (hoverNodeId) return hoverNodeId;
@@ -850,8 +916,94 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     return null;
   }
 
+  function clearTipTimers() {
+    for (var i = 0; i < tipTimers.length; i++) clearTimeout(tipTimers[i]);
+    tipTimers = [];
+  }
+
+  function hideToolbarTip() {
+    clearTipTimers();
+    tipStage = 0;
+    tipBtn = null;
+    toolbarTip.classList.remove('show', 'stage-1', 'stage-2', 'stage-3');
+    toolbarTip.setAttribute('aria-hidden', 'true');
+  }
+
+  function tipKeysForButton(btn) {
+    var kind = btn && btn.getAttribute('data-tip');
+    if (kind === 'inspire') {
+      return {
+        name: 'toolbar.inspire',
+        purpose: 'toolbar.inspire.purpose',
+        how: 'toolbar.inspire.how',
+      };
+    }
+    var id = toolbarNodeId || activeToolbarId();
+    var node = id && nodesDS ? nodesDS.get(id) : null;
+    var ghost = !!(node && node._ghost);
+    return {
+      name: ghost ? 'toolbar.advanceGhost' : 'toolbar.advance',
+      purpose: ghost ? 'toolbar.advanceGhost.purpose' : 'toolbar.advance.purpose',
+      how: ghost ? 'toolbar.advanceGhost.how' : 'toolbar.advance.how',
+    };
+  }
+
+  function placeToolbarTip(btn) {
+    if (!btn) return;
+    var rect = btn.getBoundingClientRect();
+    toolbarTip.style.left = (rect.right + 8) + 'px';
+    toolbarTip.style.top = (rect.top) + 'px';
+  }
+
+  function setTipStage(stage) {
+    tipStage = stage;
+    toolbarTip.classList.remove('stage-1', 'stage-2', 'stage-3');
+    if (stage >= 1) toolbarTip.classList.add('stage-' + stage);
+    toolbarTip.classList.add('show');
+    toolbarTip.setAttribute('aria-hidden', 'false');
+  }
+
+  function showToolbarTip(btn, stage) {
+    if (!btn) return;
+    tipBtn = btn;
+    var keys = tipKeysForButton(btn);
+    toolbarTipName.textContent = t(keys.name);
+    toolbarTipPurpose.textContent = t(keys.purpose);
+    toolbarTipHow.textContent = t(keys.how);
+    placeToolbarTip(btn);
+    setTipStage(stage);
+  }
+
+  function startToolbarTip(btn) {
+    hideToolbarTip();
+    tipBtn = btn;
+    tipTimers.push(setTimeout(function () {
+      if (tipBtn !== btn) return;
+      showToolbarTip(btn, 1);
+      tipTimers.push(setTimeout(function () {
+        if (tipBtn !== btn) return;
+        showToolbarTip(btn, 2);
+        tipTimers.push(setTimeout(function () {
+          if (tipBtn !== btn) return;
+          showToolbarTip(btn, 3);
+        }, 1500));
+      }, 1000));
+    }, 1000));
+  }
+
+  function syncToolbarButtonLabels() {
+    var id = toolbarNodeId || activeToolbarId();
+    var node = id && nodesDS ? nodesDS.get(id) : null;
+    var ghost = !!(node && node._ghost);
+    btnInspire.setAttribute('aria-label', t('toolbar.inspire'));
+    btnInspire.setAttribute('title', '');
+    btnAdvance.setAttribute('aria-label', t(ghost ? 'toolbar.advanceGhost' : 'toolbar.advance'));
+    btnAdvance.setAttribute('title', '');
+  }
+
   function hideToolbar() {
     toolbarNodeId = null;
+    hideToolbarTip();
     nodeToolbar.classList.remove('show');
   }
 
@@ -860,9 +1012,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     var id = activeToolbarId();
     if (!id || !nodesDS || !nodesDS.get(id)) { hideToolbar(); return; }
     var node = nodesDS.get(id);
-    var isGhost = !!node._ghost;
     btnAdvance.hidden = false;
-    btnAdvance.textContent = t(isGhost ? 'toolbar.advanceGhost' : 'toolbar.advance');
+    syncToolbarButtonLabels();
     try {
       var pos = network.getPositions([id])[id];
       if (!pos) { hideToolbar(); return; }
@@ -871,6 +1022,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       nodeToolbar.style.left = dom.x + 'px';
       nodeToolbar.style.top = (dom.y - 18) + 'px';
       nodeToolbar.classList.add('show');
+      if (tipBtn && tipStage >= 1) placeToolbarTip(tipBtn);
     } catch (e) {
       hideToolbar();
     }
@@ -1304,7 +1456,26 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     clearBlurTimer();
   });
   nodeToolbar.addEventListener('mouseleave', function () {
+    hideToolbarTip();
     scheduleHideToolbar();
+  });
+
+  [btnInspire, btnAdvance].forEach(function (btn) {
+    btn.addEventListener('mouseenter', function () {
+      clearBlurTimer();
+      startToolbarTip(btn);
+    });
+    btn.addEventListener('mouseleave', function (e) {
+      var to = e.relatedTarget;
+      if (to && (btn.contains(to) || nodeToolbar.contains(to))) return;
+      hideToolbarTip();
+    });
+    btn.addEventListener('focus', function () {
+      showToolbarTip(btn, 1);
+    });
+    btn.addEventListener('blur', function () {
+      hideToolbarTip();
+    });
   });
 
   btnInspire.addEventListener('click', function (e) {

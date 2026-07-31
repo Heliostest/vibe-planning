@@ -1,6 +1,6 @@
 ---
 name: vibe-planning
-version: 1.1.6
+version: 1.1.7
 description: >-
   Maintains a doc-backed dependency graph for product planning: indexes specs/plans
   in plan-tree.yaml, aligns cached status from linked docs, suggests next work from
@@ -11,12 +11,12 @@ description: >-
   roadmapped.
 disable-model-invocation: true
 metadata:
-  version: "1.1.6"
+  version: "1.1.7"
 ---
 
 # vibe-planning
 
-**版本 1.1.6**
+**版本 1.1.7**
 
 文档（specs/plans/roadmaps）是**唯一真相源**。`plan-tree.yaml` 是索引/缓存，供看板展示与交互；文档与 YAML 冲突时以文档扫描结果为准。
 
