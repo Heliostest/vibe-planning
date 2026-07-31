@@ -1034,7 +1034,12 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   var tipBtn = null;
   var proposeSourceId = null;
 
+  function proposeLocked() {
+    return !!(proposeSourceId && proposePop.classList.contains('show'));
+  }
+
   function activeToolbarId() {
+    if (proposeLocked()) return proposeSourceId;
     if (hoverNodeId) return hoverNodeId;
     if (selected && selected.id) return selected.id;
     return null;
@@ -1151,6 +1156,10 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     proposeSourceId = null;
     proposePop.classList.remove('show');
     proposePop.setAttribute('aria-hidden', 'true');
+    btnInspire.disabled = false;
+    btnPropose.disabled = false;
+    btnAdvance.disabled = false;
+    btnDelete.disabled = false;
   }
 
   function positionProposePop() {
@@ -1163,14 +1172,28 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
 
   function showProposePop(sourceId) {
     proposeSourceId = sourceId;
+    hoverNodeId = sourceId;
+    toolbarNodeId = sourceId;
     proposeInput.value = '';
     proposePop.classList.add('show');
     proposePop.setAttribute('aria-hidden', 'false');
+    btnInspire.disabled = true;
+    btnPropose.disabled = true;
+    btnAdvance.disabled = true;
+    btnDelete.disabled = true;
+    clearBlurTimer();
+    hideToolbarTip();
+    positionToolbar();
     positionProposePop();
+    if (network && nodesDS && nodesDS.get(sourceId)) {
+      try { network.selectNodes([sourceId]); } catch (e) { /* ignore */ }
+      showDetail(nodesDS.get(sourceId));
+    }
     setTimeout(function () { proposeInput.focus(); }, 0);
   }
 
   function hideToolbar() {
+    if (proposeLocked()) return;
     toolbarNodeId = null;
     hideToolbarTip();
     hideProposePop();
@@ -1178,14 +1201,23 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   }
 
   function positionToolbar() {
-    if (!network) { hideToolbar(); return; }
+    if (!network) {
+      if (!proposeLocked()) hideToolbar();
+      return;
+    }
     var id = activeToolbarId();
-    if (!id || !nodesDS || !nodesDS.get(id)) { hideToolbar(); return; }
+    if (!id || !nodesDS || !nodesDS.get(id)) {
+      if (!proposeLocked()) hideToolbar();
+      return;
+    }
     btnAdvance.hidden = false;
     syncToolbarButtonLabels();
     try {
       var pos = network.getPositions([id])[id];
-      if (!pos) { hideToolbar(); return; }
+      if (!pos) {
+        if (!proposeLocked()) hideToolbar();
+        return;
+      }
       var dom = network.canvasToDOM(pos);
       toolbarNodeId = id;
       nodeToolbar.style.left = dom.x + 'px';
@@ -1194,7 +1226,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       positionProposePop();
       if (tipBtn && tipStage >= 1) placeToolbarTip(tipBtn);
     } catch (e) {
-      hideToolbar();
+      if (!proposeLocked()) hideToolbar();
     }
   }
 
@@ -1206,19 +1238,16 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   }
 
   function scheduleHideToolbar() {
+    if (proposeLocked()) {
+      clearBlurTimer();
+      return;
+    }
     clearBlurTimer();
     blurTimer = setTimeout(function () {
       blurTimer = null;
-      if (proposePop.classList.contains('show') &&
-          (proposePop.contains(document.activeElement) || proposeInput === document.activeElement)) {
-        return;
-      }
       hoverNodeId = null;
       if (!(selected && selected.id)) hideToolbar();
-      else {
-        hideProposePop();
-        positionToolbar();
-      }
+      else positionToolbar();
     }, 180);
   }
 
@@ -1654,11 +1683,21 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
 
   function wireNetworkToolbar(net) {
     net.on('hoverNode', function (p) {
+      if (proposeLocked()) {
+        clearBlurTimer();
+        positionToolbar();
+        return;
+      }
       clearBlurTimer();
       hoverNodeId = p.node;
       positionToolbar();
     });
     net.on('blurNode', function () {
+      if (proposeLocked()) {
+        clearBlurTimer();
+        positionToolbar();
+        return;
+      }
       scheduleHideToolbar();
     });
     net.on('dragStart', function (p) {
@@ -1745,12 +1784,21 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   });
 
   proposePop.addEventListener('mouseenter', function () { clearBlurTimer(); });
-  proposePop.addEventListener('mouseleave', function () { scheduleHideToolbar(); });
+  proposePop.addEventListener('mouseleave', function () {
+    if (proposeLocked()) {
+      clearBlurTimer();
+      positionToolbar();
+      return;
+    }
+    scheduleHideToolbar();
+  });
+  proposePop.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+  proposePop.addEventListener('click', function (e) { e.stopPropagation(); });
 
   btnInspire.addEventListener('click', function (e) {
     e.stopPropagation();
+    if (proposeLocked()) return;
     hideToolbarTip();
-    hideProposePop();
     var id = toolbarNodeId || activeToolbarId();
     if (!id || !nodesDS) return;
     var node = nodesDS.get(id);
@@ -1760,19 +1808,18 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
 
   btnPropose.addEventListener('click', function (e) {
     e.stopPropagation();
+    if (proposeLocked()) return;
     hideToolbarTip();
     var id = toolbarNodeId || activeToolbarId();
     if (!id) return;
-    if (proposePop.classList.contains('show') && proposeSourceId === id) {
-      hideProposePop();
-      return;
-    }
     showProposePop(id);
   });
 
   proposeCancel.addEventListener('click', function (e) {
     e.stopPropagation();
     hideProposePop();
+    positionToolbar();
+    proposeInput.blur();
   });
 
   proposeSubmit.addEventListener('click', async function (e) {
@@ -1804,8 +1851,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
 
   btnAdvance.addEventListener('click', async function (e) {
     e.stopPropagation();
+    if (proposeLocked()) return;
     hideToolbarTip();
-    hideProposePop();
     var id = toolbarNodeId || activeToolbarId();
     if (!id || !nodesDS) return;
     var node = nodesDS.get(id);
@@ -1837,8 +1884,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
 
   btnDelete.addEventListener('click', async function (e) {
     e.stopPropagation();
+    if (proposeLocked()) return;
     hideToolbarTip();
-    hideProposePop();
     var id = toolbarNodeId || activeToolbarId();
     if (!id || !nodesDS) return;
     btnDelete.disabled = true;
@@ -2215,6 +2262,13 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       graphEl.appendChild(nodeToolbar);
       graphEl.appendChild(proposePop);
       network.on('click', function (p) {
+        if (proposeLocked()) {
+          if (network && proposeSourceId) {
+            try { network.selectNodes([proposeSourceId]); } catch (e) { /* ignore */ }
+          }
+          positionToolbar();
+          return;
+        }
         if (!p.nodes.length) {
           hoverNodeId = null;
           showDetail(null);
@@ -2508,6 +2562,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   }
 
   function showDetail(node) {
+    if (proposeLocked() && node && node.id !== proposeSourceId) return;
+    if (proposeLocked() && !node) return;
     selected = node;
     if (!node) {
       detail.className = 'empty';
