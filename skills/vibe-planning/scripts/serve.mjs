@@ -38,7 +38,7 @@ function readVersion() {
       }
     } catch { /* try next */ }
   }
-  return '1.1.9';
+  return '1.1.10';
 }
 
 const VERSION = readVersion();

@@ -215,9 +215,14 @@
   }
   #settingsPanel, #promptPanel {
     position: relative; z-index: 1;
-    background: rgba(17, 24, 39, 0.96); border: 1px solid var(--border); border-radius: 24px;
-    padding: 18px 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 0 30px rgba(245,158,11,0.08);
+    background: var(--panel-solid); color: var(--text);
+    border: 1px solid var(--border); border-radius: 24px;
+    padding: 18px 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35), 0 0 30px rgba(245,158,11,0.08);
     backdrop-filter: blur(18px);
+  }
+  html[data-theme="light"] #settingsPanel,
+  html[data-theme="light"] #promptPanel {
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18), 0 0 24px rgba(217,119,6,0.08);
   }
   #settingsPanel { width: min(360px, 92vw); }
   #promptPanel {
