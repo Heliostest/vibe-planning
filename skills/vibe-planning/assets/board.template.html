@@ -1646,14 +1646,9 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       idSet.add(n.id);
       const st = styleFor(n.status || 'idea', isGhost);
       var doneSeqs = !isGhost ? normalizeSeqList(doneOrderMap[n.id]) : [];
-      var tip = (isGhost ? '[ghost] ' : '') + (n.title || n.id) + '\n' + (n.status || '');
-      if (doneSeqs.length) {
-        tip += '\n#' + doneSeqs.slice().sort(function (a, b) { return b - a; }).join(' · #');
-      }
       nodesArr.push({
         id: n.id,
         label: n.title || n.id,
-        title: tip,
         ...st,
         _raw: n,
         _ghost: !!isGhost,
@@ -1733,7 +1728,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       },
       stabilization: { iterations: 220, fit: true },
     },
-    interaction: { hover: true, tooltipDelay: 120, dragNodes: true },
+    interaction: { hover: true, tooltipDelay: 999999, dragNodes: true },
     nodes: {
       shape: 'box',
       margin: 12,
