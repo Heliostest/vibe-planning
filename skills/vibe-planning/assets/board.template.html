@@ -501,6 +501,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   var hoverBadgeSeq = null;
   var badgeHitBoxes = [];
   var badgePointerWired = false;
+  var badgeScrollByNode = {};
 
   const I18N = {
     'zh-CN': {
@@ -1469,31 +1470,61 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     }
   }
 
+  function drawTriangle(ctx, x, y, dir, enabled) {
+    var h = 7;
+    var w = 8;
+    ctx.beginPath();
+    if (dir === 'up') {
+      ctx.moveTo(x, y - h);
+      ctx.lineTo(x - w, y + h * 0.55);
+      ctx.lineTo(x + w, y + h * 0.55);
+    } else {
+      ctx.moveTo(x, y + h);
+      ctx.lineTo(x - w, y - h * 0.55);
+      ctx.lineTo(x + w, y - h * 0.55);
+    }
+    ctx.closePath();
+    ctx.fillStyle = enabled
+      ? (theme === 'light' ? 'rgba(55,65,81,0.85)' : 'rgba(226,232,240,0.9)')
+      : (theme === 'light' ? 'rgba(156,163,175,0.35)' : 'rgba(107,114,128,0.35)');
+    ctx.fill();
+  }
+
   function drawDoneBadges(ctx, net) {
     if (!nodesDS || !ctx || !net) return;
     badgeHitBoxes = [];
     var ids = nodesDS.getIds();
     var perRow = 5;
+    var maxRows = 5;
     var gap = 24;
     var r = 11;
     for (var i = 0; i < ids.length; i++) {
-      var node = nodesDS.get(ids[i]);
+      var nodeId = ids[i];
+      var node = nodesDS.get(nodeId);
       if (!node || node._ghost || !node._raw) continue;
       var seqs = normalizeSeqList(node._doneSeq).slice().sort(function (a, b) { return b - a; });
       if (!seqs.length) continue;
-      var box = net.getBoundingBox(ids[i]);
+      var box = net.getBoundingBox(nodeId);
       if (!box) continue;
-      for (var si = 0; si < seqs.length; si++) {
+      var totalRows = Math.ceil(seqs.length / perRow);
+      var maxStart = Math.max(0, totalRows - maxRows);
+      var startRow = badgeScrollByNode[nodeId] || 0;
+      if (startRow > maxStart) startRow = maxStart;
+      if (startRow < 0) startRow = 0;
+      badgeScrollByNode[nodeId] = startRow;
+      var startIdx = startRow * perRow;
+      var endIdx = Math.min(seqs.length, startIdx + maxRows * perRow);
+      for (var si = startIdx; si < endIdx; si++) {
         var col = si % perRow;
-        var row = Math.floor(si / perRow);
+        var visRow = Math.floor(si / perRow) - startRow;
         var x = box.right + 3 + col * gap;
-        var y = box.top - 3 + row * gap;
+        var y = box.top - 3 + visRow * gap;
         var seq = seqs[si];
         var label = String(seq);
         var active = hoverBadgeSeq != null;
         var matched = active && hoverBadgeSeq === seq;
         var faded = active && !matched;
-        badgeHitBoxes.push({ x: x, y: y, r: r + 3, seq: seq, nodeId: ids[i] });
+        badgeHitBoxes.push({ kind: 'badge', x: x, y: y, r: r + 3, seq: seq, nodeId: nodeId });
         ctx.save();
         if (faded) ctx.globalAlpha = 0.28;
         ctx.shadowColor = matched ? 'rgba(253, 224, 71, 1)' : 'rgba(245, 158, 11, 0.85)';
@@ -1512,6 +1543,22 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
         ctx.textBaseline = 'middle';
         ctx.fillText(label, x, y + 0.5);
         ctx.restore();
+      }
+      if (totalRows > maxRows) {
+        var ax = box.right + 3 + perRow * gap + 10;
+        var areaTop = box.top - 3;
+        var areaBot = box.top - 3 + (maxRows - 1) * gap;
+        var mid = (areaTop + areaBot) / 2;
+        var upY = mid - 12;
+        var downY = mid + 12;
+        var canUp = startRow > 0;
+        var canDown = startRow < maxStart;
+        ctx.save();
+        drawTriangle(ctx, ax, upY, 'up', canUp);
+        drawTriangle(ctx, ax, downY, 'down', canDown);
+        ctx.restore();
+        badgeHitBoxes.push({ kind: 'scrollUp', x: ax, y: upY, r: 12, nodeId: nodeId, enabled: canUp });
+        badgeHitBoxes.push({ kind: 'scrollDown', x: ax, y: downY, r: 12, nodeId: nodeId, enabled: canDown });
       }
     }
   }
@@ -1539,6 +1586,21 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     if (network) network.redraw();
   }
 
+  function scrollBadges(nodeId, delta) {
+    if (!nodeId || !nodesDS) return false;
+    var node = nodesDS.get(nodeId);
+    if (!node) return false;
+    var seqs = normalizeSeqList(node._doneSeq);
+    var totalRows = Math.ceil(seqs.length / 5);
+    var maxStart = Math.max(0, totalRows - 5);
+    var cur = badgeScrollByNode[nodeId] || 0;
+    var next = Math.max(0, Math.min(maxStart, cur + delta));
+    if (next === cur) return false;
+    badgeScrollByNode[nodeId] = next;
+    if (network) network.redraw();
+    return true;
+  }
+
   function wireBadgePointer(net) {
     if (badgePointerWired || !net || !net.canvas || !net.canvas.frame) return;
     var canvas = net.canvas.frame.canvas;
@@ -1550,8 +1612,9 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
         var domPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
         var canvasPos = net.DOMtoCanvas(domPos);
         var hit = hitTestBadge(canvasPos);
-        canvas.style.cursor = hit ? 'pointer' : '';
-        setHoverBadgeSeq(hit ? hit.seq : null);
+        var clickable = hit && (hit.kind === 'badge' || hit.enabled);
+        canvas.style.cursor = clickable ? 'pointer' : '';
+        setHoverBadgeSeq(hit && hit.kind === 'badge' ? hit.seq : null);
       } catch (err) {
         setHoverBadgeSeq(null);
       }
@@ -1560,6 +1623,33 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       canvas.style.cursor = '';
       setHoverBadgeSeq(null);
     });
+    canvas.addEventListener('mousedown', function (e) {
+      try {
+        var rect = canvas.getBoundingClientRect();
+        var domPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        var hit = hitTestBadge(net.DOMtoCanvas(domPos));
+        if (!hit || (hit.kind !== 'scrollUp' && hit.kind !== 'scrollDown')) return;
+        if (!hit.enabled) return;
+        e.preventDefault();
+        e.stopPropagation();
+        scrollBadges(hit.nodeId, hit.kind === 'scrollUp' ? -1 : 1);
+      } catch (err) { /* ignore */ }
+    }, true);
+    canvas.addEventListener('wheel', function (e) {
+      try {
+        var rect = canvas.getBoundingClientRect();
+        var domPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        var hit = hitTestBadge(net.DOMtoCanvas(domPos));
+        if (!hit) return;
+        if (hit.kind !== 'badge' && hit.kind !== 'scrollUp' && hit.kind !== 'scrollDown') return;
+        var nodeId = hit.nodeId;
+        var seqs = normalizeSeqList((nodesDS.get(nodeId) || {})._doneSeq);
+        if (Math.ceil(seqs.length / 5) <= 5) return;
+        e.preventDefault();
+        e.stopPropagation();
+        scrollBadges(nodeId, e.deltaY > 0 ? 1 : -1);
+      } catch (err) { /* ignore */ }
+    }, { passive: false, capture: true });
   }
 
   function wireNetworkToolbar(net) {
