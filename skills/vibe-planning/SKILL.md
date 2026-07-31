@@ -1,6 +1,6 @@
 ﻿---
 name: vibe-planning
-version: 1.1.20
+version: 1.1.21
 description: >-
   Maintains a doc-backed dependency graph for product planning: indexes specs/plans
   in plan-tree.yaml, aligns cached status from linked docs, suggests next work from
@@ -11,12 +11,12 @@ description: >-
   roadmapped.
 disable-model-invocation: true
 metadata:
-  version: "1.1.20"
+  version: "1.1.21"
 ---
 
 # vibe-planning
 
-**版本 1.1.20**
+**版本 1.1.21**
 
 文档（specs/plans/roadmaps）是**唯一真相源**。`plan-tree.yaml` 是索引/缓存，供看板展示与交互；文档与 YAML 冲突时以文档扫描结果为准。
 
@@ -110,7 +110,7 @@ npx --yes github:Heliostest/vibe-planning serve "<projectRoot>" --open
 - 看板：默认 `http://localhost:7465/`；端口占用时自动 +1（最多尝试 30 次）
 - 启动时打印实际 URL；`--open` 跨平台打开浏览器
 - 零 npm 依赖；YAML 助手在 `scripts/lib/yaml-mini.mjs`
-- API：`GET /api/tree`、`GET/POST /api/layout`、`POST /api/relayout`、`GET /api/health`、`GET /api/events`（SSE `reload`）、`POST /api/sync`、`POST /api/promote-ghost`、`POST /api/propose-ghost`、`POST /api/soft-delete`、`GET /api/sync-prompt`
+- API：`GET /api/tree`、`GET/POST /api/layout`、`POST /api/relayout`、`GET /api/health`、`GET /api/events`（SSE `reload`）、`POST /api/sync`、`POST /api/promote-ghost`、`POST /api/propose-ghost`、`POST /api/soft-delete`、`GET/POST /api/trash`、`POST /api/trash/restore`、`GET /api/sync-prompt`
 - 看板加载后拉 `/api/tree` + `/api/layout` 重绘；拖拽位置写入 `layout.json`；「重排」写整表 layout；SSE + 每 2s 轮询
 
 解析 `<skill>`：Cursor/Claude 下通常为 `~/.cursor/skills/vibe-planning` 或项目内 `.cursor/skills/vibe-planning`；也可用 `node <repo>/bin/vibe-planning.mjs skill-path`。
@@ -139,7 +139,7 @@ node "<skill>/scripts/render-board.mjs" "<project>/docs/vibe-planning/plan-tree.
 
 - 主视图：vis-network 依赖图（barnesHut 稳定后冻结）；`parent` 实线、`dependsOn` 淡虚线
 - 节点颜色按 status（见 reference 色板）
-- **节点悬停/选中**：上方浮动工具栏「提议 / 推进 / 删除」；「提议」弹层左下角为「启发」；ghost 上「推进→构想」经 `/api/promote-ghost` 升为正式节点；提示词含现有节点列表并要求补全 `dependsOn`
+- **节点悬停/选中**：工具栏「提议 / 推进 / 关闭(×)」；关闭可选暂时暗淡或永久进垃圾桶；「提议」弹层左下角「启发」；标题栏「垃圾桶」可恢复
 - 标题栏：**「同步」**、**「重排」**；侧栏：**「从此处建议」**（复用 inspire 提示词）
 - 设置弹窗可选界面语言（`zh-CN`/`en`，`localStorage`：`vibe-planning.locale`）；节点内容语言不变
 - 同步后弹窗展示可贴 LLM 提示词；meta/toast 显示摘要

@@ -190,6 +190,59 @@
     color: #fcd34d; font-weight: 700;
   }
   #proposeSubmit:hover { background: #f59e0b; color: #0B0F19; border-color: #f59e0b; }
+  #closePop {
+    position: absolute; z-index: 12; display: block;
+    width: min(280px, 80vw);
+    padding: 10px; border-radius: 14px;
+    background: var(--panel-solid); color: var(--text);
+    border: 1px solid var(--border);
+    box-shadow: 0 14px 36px rgba(0,0,0,0.45);
+    transform: translate(-50%, -100%);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.18s ease, visibility 0.18s ease;
+  }
+  #closePop.show { opacity: 1; visibility: visible; pointer-events: auto; }
+  #closePop .close-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  #closePop .close-desc { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.4; }
+  #closeActions { display: flex; flex-direction: column; gap: 6px; }
+  #closeActions button { font-size: 12px; padding: 7px 10px; border-radius: 10px; text-align: left; }
+  #closeSoft {
+    background: rgba(148, 163, 184, 0.18); border-color: rgba(148, 163, 184, 0.45);
+  }
+  #closePermanent {
+    background: rgba(127, 29, 29, 0.35); border-color: rgba(248, 113, 113, 0.45); color: #fca5a5;
+  }
+  #closePermanent:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+  #trashModal {
+    position: fixed; inset: 0; z-index: 50; display: none;
+  }
+  #trashModal.open { display: block; }
+  #trashBackdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.45); }
+  #trashPanel {
+    position: absolute; top: 10%; left: 50%; transform: translateX(-50%);
+    width: min(520px, 92vw); max-height: 70vh; overflow: auto;
+    background: var(--panel-solid); color: var(--text);
+    border: 1px solid var(--border); border-radius: 16px;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.45); padding: 14px 16px;
+  }
+  #trashPanel h3 {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 0 0 10px; font-size: 16px;
+  }
+  #trashList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  #trashList li {
+    border: 1px solid var(--border); border-radius: 12px; padding: 10px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  #trashList .trash-meta { font-size: 12px; color: var(--muted); }
+  #trashList .trash-files { font-size: 11px; color: var(--muted); word-break: break-all; }
+  #trashList .trash-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  #trashList .trash-restore {
+    font-size: 12px; padding: 5px 10px; border-radius: 10px;
+    background: rgba(245, 158, 11, 0.22); border-color: rgba(245, 158, 11, 0.55);
+    color: #fcd34d; font-weight: 700; white-space: nowrap;
+  }
+  #trashEmpty { color: var(--muted); font-size: 13px; padding: 12px 0; }
   #toolbarTip {
     position: fixed; z-index: 30; display: none;
     min-width: 72px; max-width: min(320px, 70vw);
@@ -384,6 +437,7 @@
     <div class="actions">
       <button type="button" id="btnSync" data-tour="sync" data-i18n="sync" data-i18n-title="sync.title">Sync</button>
       <button type="button" id="btnRelayout" data-tour="relayout" data-i18n="relayout" data-i18n-title="relayout.title">Relayout</button>
+      <button type="button" id="btnTrash" data-i18n="trash" data-i18n-title="trash.title">垃圾桶</button>
       <button type="button" id="btnTour" data-i18n="tour" data-i18n-title="tour.title">Tutorial</button>
       <button type="button" id="btnSettings" data-tour="settings" data-i18n="settings">⚙ Settings</button>
     </div>
@@ -415,12 +469,20 @@
       <path d="m14.7 6.3 3.9-3.9"/>
     </svg>
   </button>
-  <button type="button" id="btnDelete" class="icon-btn danger" data-tip="delete" aria-label="删除">
+  <button type="button" id="btnDelete" class="icon-btn danger" data-tip="delete" aria-label="关闭">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-      <path d="M10 11v6"/><path d="M14 11v6"/>
+      <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
     </svg>
   </button>
+</div>
+<div id="closePop" aria-hidden="true">
+  <div class="close-title" data-i18n="close.title">关闭此节点？</div>
+  <div class="close-desc" id="closeDesc" data-i18n="close.desc">选择暂时关闭（图上暗淡）或永久删除（移入垃圾桶，相关文档一并归档）。</div>
+  <div id="closeActions">
+    <button type="button" id="closeSoft" data-i18n="close.soft">暂时关闭</button>
+    <button type="button" id="closePermanent" data-i18n="close.permanent">永久删除</button>
+    <button type="button" id="closeCancel" data-i18n="close.cancel">取消</button>
+  </div>
 </div>
 <div id="proposePop" aria-hidden="true">
   <label for="proposeInput" data-i18n="propose.label">基于此节点，描述要做的新功能</label>
@@ -444,6 +506,17 @@
   <div class="tip-how" id="toolbarTipHow"></div>
 </div>
 <div id="toast"></div>
+<div id="trashModal" aria-hidden="true">
+  <div id="trashBackdrop"></div>
+  <div id="trashPanel" role="dialog" aria-modal="true" aria-labelledby="trashTitle">
+    <h3>
+      <span id="trashTitle" data-i18n="trash.title">垃圾桶</span>
+      <button type="button" id="trashClose" data-i18n-title="trash.close" title="Close">×</button>
+    </h3>
+    <div id="trashEmpty" data-i18n="trash.empty">暂无已删除内容</div>
+    <ul id="trashList"></ul>
+  </div>
+</div>
 <div id="settingsModal" aria-hidden="true">
   <div id="settingsBackdrop"></div>
   <div id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
@@ -578,20 +651,36 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'toolbar.advanceGhost': '推进→构想',
       'toolbar.advanceGhost.purpose': '把幽灵节点升为正式构想节点，写入计划树。',
       'toolbar.advanceGhost.how': '点击后调用晋升接口：去掉 ghost- 前缀，以 status: idea 写入 nodes。',
-      'toolbar.delete': '删除',
-      'toolbar.delete.purpose': '软删除：节点与关联边变为极暗淡，看起来像已删除。',
-      'toolbar.delete.how': '点击切换 removed 标记；再点一次可恢复显示。',
+      'toolbar.delete': '关闭',
+      'toolbar.delete.purpose': '暂时关闭或永久删除此节点。',
+      'toolbar.delete.how': '点击后选择：暂时关闭（暗淡）或永久删除（进垃圾桶）。',
       'toolbar.restore': '恢复',
-      'toolbar.restore.purpose': '取消软删除，恢复节点与边的正常显示。',
-      'toolbar.restore.how': '点击后清除 removed 标记并刷新看板。',
+      'toolbar.restore.purpose': '恢复已暂时关闭的节点显示。',
+      'toolbar.restore.how': '点击后选择恢复显示，或改为永久删除。',
+      trash: '垃圾桶',
+      'trash.title': '垃圾桶',
+      'trash.close': '关闭',
+      'trash.empty': '暂无已删除内容',
+      'trash.restore': '恢复',
+      'trash.files': '归档文档',
+      'close.title': '关闭此节点？',
+      'close.desc': '选择暂时关闭（图上暗淡）或永久删除（移入垃圾桶，相关文档一并归档）。',
+      'close.descRestore': '此节点已暂时关闭。可恢复显示，或永久删除到垃圾桶。',
+      'close.soft': '暂时关闭',
+      'close.softRestore': '恢复显示',
+      'close.permanent': '永久删除',
+      'close.cancel': '取消',
       'propose.label': '基于此节点，描述要做的新功能',
       'propose.placeholder': '例如：在详情侧栏增加导出报告…',
       'propose.cancel': '取消',
       'propose.submit': '生成 Ghost',
       'toast.proposedGhost': '已生成 Ghost 节点',
       'toast.proposeFail': '生成失败',
-      'toast.softDeleted': '已软删除（暗淡显示）',
+      'toast.softDeleted': '已暂时关闭（暗淡显示）',
       'toast.restored': '已恢复显示',
+      'toast.trashed': '已永久删除并移入垃圾桶',
+      'toast.trashRestored': '已从垃圾桶恢复',
+      'toast.trashFail': '垃圾桶操作失败',
       'toast.suggestCopied': '已复制「从此处建议」请求',
       'toast.inspireCopied': '已复制「启发」提示词到剪贴板',
       'toast.advanceCopied': '已复制「推进」提示词到剪贴板',
@@ -626,7 +715,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s6.title': '节点详情与建议',
       'tour.s6.body': '选中节点后这里显示文档与依赖。「从此处建议」会复制一段请求，方便开新对话从该节点往下拆。',
       'tour.s7.title': '悬停工具栏',
-      'tour.s7.body': '鼠标悬停节点会出现「提议 / 推进 / 删除」；点「提议」可写新功能，左下角「启发」可复制发散提示词。',
+      'tour.s7.body': '鼠标悬停节点会出现「提议 / 推进 / 关闭」；关闭可选暂时暗淡或永久进垃圾桶。',
       'tour.s8.title': '设置与教程',
       'tour.s8.body': '设置里可切换语言、深浅色与排布模式（树状/圆形）。随时点「教程」可重播本引导。',
     },
@@ -683,12 +772,25 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'toolbar.advanceGhost': 'Advance → Idea',
       'toolbar.advanceGhost.purpose': 'Promote a ghost into a real idea node in the plan tree.',
       'toolbar.advanceGhost.how': 'Click to promote: strip the ghost- prefix and insert status: idea into nodes.',
-      'toolbar.delete': 'Delete',
-      'toolbar.delete.purpose': 'Soft-delete: dim the node and its edges so it looks removed.',
-      'toolbar.delete.how': 'Click to toggle the removed flag; click again to restore.',
+      'toolbar.delete': 'Close',
+      'toolbar.delete.purpose': 'Temporarily close or permanently delete this node.',
+      'toolbar.delete.how': 'Click to choose soft-close (dim) or permanent delete (trash).',
       'toolbar.restore': 'Restore',
-      'toolbar.restore.purpose': 'Undo soft-delete and restore normal node/edge styling.',
-      'toolbar.restore.how': 'Click to clear the removed flag and refresh the board.',
+      'toolbar.restore.purpose': 'Restore a soft-closed node.',
+      'toolbar.restore.how': 'Click to restore visibility, or permanently delete instead.',
+      trash: 'Trash',
+      'trash.title': 'Trash',
+      'trash.close': 'Close',
+      'trash.empty': 'Trash is empty',
+      'trash.restore': 'Restore',
+      'trash.files': 'Archived docs',
+      'close.title': 'Close this node?',
+      'close.desc': 'Soft-close (dim on the board) or permanently delete (move to trash with related docs).',
+      'close.descRestore': 'This node is soft-closed. Restore it, or permanently delete to trash.',
+      'close.soft': 'Soft close',
+      'close.softRestore': 'Restore',
+      'close.permanent': 'Delete permanently',
+      'close.cancel': 'Cancel',
       'propose.label': 'Describe a new feature based on this node',
       'propose.placeholder': 'e.g. Add export report in the detail pane…',
       'propose.cancel': 'Cancel',
@@ -731,7 +833,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s6.title': 'Details & suggest',
       'tour.s6.body': 'Selected node shows docs and deps. “Suggest from here” copies a request you can paste to continue from that node.',
       'tour.s7.title': 'Hover toolbar',
-      'tour.s7.body': 'Hover a node for Propose / Advance / Delete. Propose opens a draft box; Inspire sits at its bottom-left to copy a brainstorm prompt.',
+      'tour.s7.body': 'Hover a node for Propose / Advance / Close. Close can soft-dim or permanently move the node into Trash.',
       'tour.s8.title': 'Settings & tutorial',
       'tour.s8.body': 'Settings switch language, theme, and layout mode (tree / radial). Click Tutorial anytime to replay.',
     },
@@ -1073,6 +1175,17 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   const proposeInput = document.getElementById('proposeInput');
   const proposeCancel = document.getElementById('proposeCancel');
   const proposeSubmit = document.getElementById('proposeSubmit');
+  const closePop = document.getElementById('closePop');
+  const closeDesc = document.getElementById('closeDesc');
+  const closeSoft = document.getElementById('closeSoft');
+  const closePermanent = document.getElementById('closePermanent');
+  const closeCancel = document.getElementById('closeCancel');
+  const btnTrash = document.getElementById('btnTrash');
+  const trashModal = document.getElementById('trashModal');
+  const trashBackdrop = document.getElementById('trashBackdrop');
+  const trashClose = document.getElementById('trashClose');
+  const trashList = document.getElementById('trashList');
+  const trashEmpty = document.getElementById('trashEmpty');
   const toolbarTip = document.getElementById('toolbarTip');
   const toolbarTipName = document.getElementById('toolbarTipName');
   const toolbarTipPurpose = document.getElementById('toolbarTipPurpose');
@@ -1081,13 +1194,19 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   var tipStage = 0;
   var tipBtn = null;
   var proposeSourceId = null;
+  var closeSourceId = null;
 
   function proposeLocked() {
     return !!(proposeSourceId && proposePop.classList.contains('show'));
   }
 
+  function closeLocked() {
+    return !!(closeSourceId && closePop.classList.contains('show'));
+  }
+
   function activeToolbarId() {
     if (proposeLocked()) return proposeSourceId;
+    if (closeLocked()) return closeSourceId;
     if (hoverNodeId) return hoverNodeId;
     if (selected && selected.id) return selected.id;
     return null;
@@ -1209,6 +1328,43 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     btnDelete.disabled = false;
   }
 
+  function hideClosePop() {
+    closeSourceId = null;
+    closePop.classList.remove('show');
+    closePop.setAttribute('aria-hidden', 'true');
+    btnPropose.disabled = false;
+    btnAdvance.disabled = false;
+    btnDelete.disabled = false;
+  }
+
+  function positionClosePop() {
+    if (!closePop.classList.contains('show') || !nodeToolbar.classList.contains('show')) return;
+    var left = parseFloat(nodeToolbar.style.left) || 0;
+    var top = parseFloat(nodeToolbar.style.top) || 0;
+    closePop.style.left = left + 'px';
+    closePop.style.top = (top - 10) + 'px';
+  }
+
+  function showClosePop(sourceId) {
+    closeSourceId = sourceId;
+    hoverNodeId = sourceId;
+    toolbarNodeId = sourceId;
+    hideProposePop();
+    var node = nodesDS ? nodesDS.get(sourceId) : null;
+    var removed = !!(node && node._raw && node._raw.removed);
+    closeDesc.textContent = t(removed ? 'close.descRestore' : 'close.desc');
+    closeSoft.textContent = t(removed ? 'close.softRestore' : 'close.soft');
+    closePop.classList.add('show');
+    closePop.setAttribute('aria-hidden', 'false');
+    btnPropose.disabled = true;
+    btnAdvance.disabled = true;
+    btnDelete.disabled = true;
+    clearBlurTimer();
+    hideToolbarTip();
+    positionToolbar();
+    positionClosePop();
+  }
+
   function positionProposePop() {
     if (!proposePop.classList.contains('show') || !nodeToolbar.classList.contains('show')) return;
     var left = parseFloat(nodeToolbar.style.left) || 0;
@@ -1218,6 +1374,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   }
 
   function showProposePop(sourceId) {
+    hideClosePop();
     proposeSourceId = sourceId;
     hoverNodeId = sourceId;
     toolbarNodeId = sourceId;
@@ -1239,21 +1396,22 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   }
 
   function hideToolbar() {
-    if (proposeLocked()) return;
+    if (proposeLocked() || closeLocked()) return;
     toolbarNodeId = null;
     hideToolbarTip();
     hideProposePop();
+    hideClosePop();
     nodeToolbar.classList.remove('show');
   }
 
   function positionToolbar() {
     if (!network) {
-      if (!proposeLocked()) hideToolbar();
+      if (!proposeLocked() && !closeLocked()) hideToolbar();
       return;
     }
     var id = activeToolbarId();
     if (!id || !nodesDS || !nodesDS.get(id)) {
-      if (!proposeLocked()) hideToolbar();
+      if (!proposeLocked() && !closeLocked()) hideToolbar();
       return;
     }
     btnAdvance.hidden = false;
@@ -1270,6 +1428,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       nodeToolbar.style.top = (dom.y - 18) + 'px';
       nodeToolbar.classList.add('show');
       positionProposePop();
+      positionClosePop();
       if (tipBtn && tipStage >= 1) placeToolbarTip(tipBtn);
     } catch (e) {
       if (!proposeLocked()) hideToolbar();
@@ -1284,7 +1443,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   }
 
   function scheduleHideToolbar() {
-    if (proposeLocked()) {
+    if (proposeLocked() || closeLocked()) {
       clearBlurTimer();
       return;
     }
@@ -1773,7 +1932,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
 
   function wireNetworkToolbar(net) {
     net.on('hoverNode', function (p) {
-      if (proposeLocked()) {
+      if (proposeLocked() || closeLocked()) {
         clearBlurTimer();
         positionToolbar();
         return;
@@ -1783,7 +1942,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       positionToolbar();
     });
     net.on('blurNode', function () {
-      if (proposeLocked()) {
+      if (proposeLocked() || closeLocked()) {
         clearBlurTimer();
         positionToolbar();
         return;
@@ -1977,13 +2136,38 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     copyText(buildAdvancePrompt(node._raw || {}), 'toast.advanceCopied');
   });
 
-  btnDelete.addEventListener('click', async function (e) {
+  btnDelete.addEventListener('click', function (e) {
     e.stopPropagation();
-    if (proposeLocked()) return;
+    if (proposeLocked() || closeLocked()) return;
     hideToolbarTip();
     var id = toolbarNodeId || activeToolbarId();
     if (!id || !nodesDS) return;
-    btnDelete.disabled = true;
+    if (id === 'root') {
+      toast(t('toast.trashFail') + ': root');
+      return;
+    }
+    showClosePop(id);
+  });
+
+  closePop.addEventListener('mouseenter', function () { clearBlurTimer(); });
+  closePop.addEventListener('mouseleave', function () {
+    if (closeLocked()) { clearBlurTimer(); positionToolbar(); return; }
+    scheduleHideToolbar();
+  });
+  closePop.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+  closePop.addEventListener('click', function (e) { e.stopPropagation(); });
+
+  closeCancel.addEventListener('click', function (e) {
+    e.stopPropagation();
+    hideClosePop();
+    positionToolbar();
+  });
+
+  closeSoft.addEventListener('click', async function (e) {
+    e.stopPropagation();
+    var id = closeSourceId || toolbarNodeId || activeToolbarId();
+    if (!id) return;
+    closeSoft.disabled = true;
     try {
       var res = await fetch('/api/soft-delete', {
         method: 'POST',
@@ -1992,17 +2176,115 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       });
       var json = await res.json();
       if (!res.ok || !json.ok) {
-        toast((json && json.error) || ('HTTP ' + res.status));
+        toast((json && json.error) || t('toast.trashFail'));
         return;
       }
+      hideClosePop();
       toast(t(json.removed ? 'toast.softDeleted' : 'toast.restored'));
       await reloadTree({ force: true });
     } catch (err) {
       toast(String(err && err.message ? err.message : err));
     } finally {
-      btnDelete.disabled = false;
+      closeSoft.disabled = false;
     }
   });
+
+  closePermanent.addEventListener('click', async function (e) {
+    e.stopPropagation();
+    var id = closeSourceId || toolbarNodeId || activeToolbarId();
+    if (!id) return;
+    closePermanent.disabled = true;
+    try {
+      var res = await fetch('/api/trash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id }),
+      });
+      var json = await res.json();
+      if (!res.ok || !json.ok) {
+        toast((json && json.error) || t('toast.trashFail'));
+        return;
+      }
+      hideClosePop();
+      toast(t('toast.trashed'));
+      await reloadTree({ force: true });
+    } catch (err) {
+      toast(String(err && err.message ? err.message : err));
+    } finally {
+      closePermanent.disabled = false;
+    }
+  });
+
+  async function refreshTrashModal() {
+    trashList.innerHTML = '';
+    try {
+      var res = await fetch('/api/trash', { cache: 'no-store' });
+      var json = await res.json();
+      var entries = (json && json.entries) || [];
+      trashEmpty.style.display = entries.length ? 'none' : 'block';
+      trashList.style.display = entries.length ? 'flex' : 'none';
+      entries.forEach(function (entry) {
+        var li = document.createElement('li');
+        var title = (entry.node && (entry.node.title || entry.node.id)) || entry.entryId;
+        var files = (entry.movedFiles || []).map(function (f) { return f.from; }).join(', ');
+        li.innerHTML =
+          '<div class="trash-row"><div><b></b><div class="trash-meta"></div></div>' +
+          '<button type="button" class="trash-restore"></button></div>' +
+          (files ? '<div class="trash-files"></div>' : '');
+        li.querySelector('b').textContent = title;
+        li.querySelector('.trash-meta').textContent =
+          (entry.node && entry.node.id ? entry.node.id + ' · ' : '') +
+          (entry.deletedAt || '');
+        var btn = li.querySelector('.trash-restore');
+        btn.textContent = t('trash.restore');
+        btn.addEventListener('click', async function () {
+          btn.disabled = true;
+          try {
+            var r2 = await fetch('/api/trash/restore', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ entryId: entry.entryId }),
+            });
+            var j2 = await r2.json();
+            if (!r2.ok || !j2.ok) {
+              toast((j2 && j2.error) || t('toast.trashFail'));
+              return;
+            }
+            toast(t('toast.trashRestored'));
+            await refreshTrashModal();
+            await reloadTree({ force: true });
+          } catch (err) {
+            toast(String(err && err.message ? err.message : err));
+          } finally {
+            btn.disabled = false;
+          }
+        });
+        if (files) {
+          li.querySelector('.trash-files').textContent = t('trash.files') + ': ' + files;
+        }
+        trashList.appendChild(li);
+      });
+    } catch (err) {
+      trashEmpty.style.display = 'block';
+      trashEmpty.textContent = String(err && err.message ? err.message : err);
+    }
+  }
+
+  function openTrashModal() {
+    trashModal.classList.add('open');
+    trashModal.setAttribute('aria-hidden', 'false');
+    refreshTrashModal();
+  }
+
+  function closeTrashModal() {
+    trashModal.classList.remove('open');
+    trashModal.setAttribute('aria-hidden', 'true');
+  }
+
+  btnTrash.addEventListener('click', function () { openTrashModal(); });
+  trashClose.addEventListener('click', closeTrashModal);
+  trashBackdrop.addEventListener('click', closeTrashModal);
+
 
   function updateMeta() {
     var name = (data && data.project) ? String(data.project) : 'vibe-planning';
@@ -2369,10 +2651,18 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       nodeToolbar.hidden = false;
       graphEl.appendChild(nodeToolbar);
       graphEl.appendChild(proposePop);
+      graphEl.appendChild(closePop);
       network.on('click', function (p) {
         if (proposeLocked()) {
           if (network && proposeSourceId) {
             try { network.selectNodes([proposeSourceId]); } catch (e) { /* ignore */ }
+          }
+          positionToolbar();
+          return;
+        }
+        if (closeLocked()) {
+          if (network && closeSourceId) {
+            try { network.selectNodes([closeSourceId]); } catch (e) { /* ignore */ }
           }
           positionToolbar();
           return;
@@ -2697,6 +2987,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   function showDetail(node) {
     if (proposeLocked() && node && node.id !== proposeSourceId) return;
     if (proposeLocked() && !node) return;
+    if (closeLocked() && node && node.id !== closeSourceId) return;
+    if (closeLocked() && !node) return;
     selected = node;
     if (!node) {
       detail.className = 'empty';

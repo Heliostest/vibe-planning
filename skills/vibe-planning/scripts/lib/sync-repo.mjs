@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { parseYaml, stringifyPlanTree } from './yaml-mini.mjs';
 
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage']);
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', 'trash']);
 const STATUS_RANK = {
   idea: 1,
   proposed: 2,
@@ -43,6 +43,7 @@ function collectPlanningDocs(projectRoot) {
   if (!fs.existsSync(docsRoot)) return [];
   const all = walkMd(docsRoot, projectRoot);
   return all.filter((rel) => {
+    if (rel.startsWith('docs/vibe-planning/trash/')) return false;
     if (rel === 'docs/vibe-planning/sync-prompt.md') return false;
     if (rel === 'docs/vibe-planning/ai-sync-prompt.md') return false;
     if (rel.startsWith('docs/vibe-planning/') && rel.endsWith('.md') && !rel.includes('/')) return true;

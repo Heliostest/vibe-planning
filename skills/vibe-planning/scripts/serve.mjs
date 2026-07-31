@@ -13,6 +13,7 @@ import { parseYaml } from './lib/yaml-mini.mjs';
 import { runSync, buildAiSyncPrompt } from './lib/sync-repo.mjs';
 import { promoteGhost } from './lib/promote-ghost.mjs';
 import { proposeGhost, toggleRemoved } from './lib/propose-ghost.mjs';
+import { listTrash, permanentDelete, restoreTrashEntry } from './lib/trash-store.mjs';
 import { readLayout, mergeLayout, writeLayout } from './lib/layout-store.mjs';
 import { autoLayout } from './lib/auto-layout.mjs';
 import { readDoneOrder, mergeDoneOrder } from './lib/done-order-store.mjs';
@@ -39,7 +40,7 @@ function readVersion() {
       }
     } catch { /* try next */ }
   }
-  return '1.1.20';
+  return '1.1.21';
 }
 
 const VERSION = readVersion();
@@ -275,6 +276,44 @@ function main() {
         if (!result.ok) return sendJson(res, 404, { ok: false, error: result.error || 'node not found' });
         broadcastReload();
         return sendJson(res, 200, { ok: true, removed: result.removed, node: result.node });
+      }
+
+      if (req.method === 'GET' && pathname === '/api/trash') {
+        return sendJson(res, 200, listTrash(projectRoot));
+      }
+
+      if (req.method === 'POST' && pathname === '/api/trash') {
+        const raw = await readBody(req);
+        let body = {};
+        try { body = raw ? JSON.parse(raw) : {}; } catch {
+          return sendJson(res, 400, { ok: false, error: 'invalid JSON' });
+        }
+        const id = body && body.id;
+        if (!id) return sendJson(res, 400, { ok: false, error: 'id required' });
+        const result = permanentDelete(projectRoot, yamlPath(projectRoot), id);
+        if (!result.ok) {
+          const code = result.error === 'node not found' ? 404 : 400;
+          return sendJson(res, code, { ok: false, error: result.error || 'failed' });
+        }
+        broadcastReload();
+        return sendJson(res, 200, { ok: true, entry: result.entry });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/trash/restore') {
+        const raw = await readBody(req);
+        let body = {};
+        try { body = raw ? JSON.parse(raw) : {}; } catch {
+          return sendJson(res, 400, { ok: false, error: 'invalid JSON' });
+        }
+        const entryId = body && body.entryId;
+        if (!entryId) return sendJson(res, 400, { ok: false, error: 'entryId required' });
+        const result = restoreTrashEntry(projectRoot, yamlPath(projectRoot), entryId);
+        if (!result.ok) {
+          const code = result.error === 'entry not found' ? 404 : 400;
+          return sendJson(res, code, { ok: false, error: result.error || 'failed' });
+        }
+        broadcastReload();
+        return sendJson(res, 200, { ok: true, node: result.node, restoredFiles: result.restoredFiles });
       }
 
       if (req.method === 'GET' && pathname === '/api/layout') {
