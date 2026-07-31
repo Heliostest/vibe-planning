@@ -1,6 +1,6 @@
 # vibe-planning
 
-**v1.1.4** · [![skills.sh](https://skills.sh/b/Heliostest/vibe-planning)](https://skills.sh/Heliostest/vibe-planning)
+**v1.1.5** · [![skills.sh](https://skills.sh/b/Heliostest/vibe-planning)](https://skills.sh/Heliostest/vibe-planning)
 
 Doc-backed dependency graph for product planning. Specs/plans are the source of truth; `plan-tree.yaml` is an index; a live HTML board shows deps, syncs from git/docs, and persists drag layout.
 

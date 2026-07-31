@@ -1,6 +1,6 @@
 ---
 name: vibe-planning
-version: 1.1.4
+version: 1.1.5
 description: >-
   Maintains a doc-backed dependency graph for product planning: indexes specs/plans
   in plan-tree.yaml, aligns cached status from linked docs, suggests next work from
@@ -11,12 +11,12 @@ description: >-
   roadmapped.
 disable-model-invocation: true
 metadata:
-  version: "1.1.4"
+  version: "1.1.5"
 ---
 
 # vibe-planning
 
-**版本 1.1.4**
+**版本 1.1.5**
 
 文档（specs/plans/roadmaps）是**唯一真相源**。`plan-tree.yaml` 是索引/缓存，供看板展示与交互；文档与 YAML 冲突时以文档扫描结果为准。
 
@@ -27,7 +27,7 @@ metadata:
 - 项目目录：`<project>/docs/vibe-planning/`
 - 索引：`plan-tree.yaml`
 - 布局：`layout.json`（节点拖拽坐标，与 plan-tree 分离）
-- 完成序：`done-order.json`（done 节点右上角可多个序号：自身完成波次 + 子孙完成波次上卷；每行最多 5 个；缺省按 docs 日期启发）
+- 完成序：`done-order.json`（多序号倒序向下排，每列 5 个；悬停序号高亮同号节点并调暗其余）ne 节点右上角可多个序号：自身完成波次 + 子孙完成波次上卷；每行最多 5 个；缺省按 docs 日期启发）
 - 看板：HTTP 实时服务（主路径）；可选静态 `board.html`
 - 同步提示：`sync-prompt.md` + `ai-sync-prompt.md`（看板「同步」一次生成，弹窗可复制）
 - 技能根目录：本 `SKILL.md` 所在目录（记为 `<skill>`）

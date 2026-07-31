@@ -381,6 +381,9 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   var layoutPositions = {};
   var layoutSaveTimer = null;
   var doneOrderMap = {};
+  var hoverBadgeSeq = null;
+  var badgeHitBoxes = [];
+  var badgePointerWired = false;
 
   const I18N = {
     'zh-CN': {
@@ -451,7 +454,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s1.title': '欢迎使用 vibe-planning',
       'tour.s1.body': '这是文档驱动的依赖看板：specs/plans 是真相源，图只是索引。接下来几步带你过一遍常用操作。',
       'tour.s2.title': '状态色板',
-      'tour.s2.body': '节点颜色代表进度：构想→提议→规划→进行中→完成；虚线是延期/幽灵。完成节点右上角可有多个序号（自身+子孙完成波次），每行最多 5 个。',
+      'tour.s2.body': '节点颜色代表进度：构想→提议→规划→进行中→完成；虚线是延期/幽灵。右上角序号倒序向下排（每列 5 个）；悬停某序号会高亮同号节点。',
       'tour.s3.title': '依赖图',
       'tour.s3.body': '拖动节点可重排（父节点会带上子孙）；位置会自动保存。也可点「重排」一键按树结构排开。',
       'tour.s4.title': '同步',
@@ -533,7 +536,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s1.title': 'Welcome to vibe-planning',
       'tour.s1.body': 'A doc-backed dependency board: specs/plans are source of truth; the graph is an index. A few steps cover the basics.',
       'tour.s2.title': 'Status colors',
-      'tour.s2.body': 'Colors show progress: idea → proposed → planned → doing → done. Dashed = deferred/ghost. Done nodes may show multiple yellow badges (self + descendant waves), wrapping every 5.',
+      'tour.s2.body': 'Colors show progress: idea → proposed → planned → doing → done. Badges stack downward (newest first, 5 per column). Hover a badge to highlight nodes sharing that number.',
       'tour.s3.title': 'The graph',
       'tour.s3.body': 'Drag nodes to rearrange (parents move children). Positions persist. Or click Relayout for a tidy tree.',
       'tour.s4.title': 'Sync',
@@ -1115,35 +1118,81 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     }
   }
 
+  function nodeHasSeq(node, seq) {
+    return normalizeSeqList(node && node._doneSeq).indexOf(seq) >= 0;
+  }
+
+  function drawBadgeHoverFx(ctx, net) {
+    if (hoverBadgeSeq == null || !nodesDS || !ctx || !net) return;
+    var ids = nodesDS.getIds();
+    var dim = theme === 'light' ? 'rgba(248, 250, 252, 0.62)' : 'rgba(11, 15, 25, 0.62)';
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i];
+      var node = nodesDS.get(id);
+      if (!node || node._ghost) continue;
+      var box = net.getBoundingBox(id);
+      if (!box) continue;
+      var match = nodeHasSeq(node, hoverBadgeSeq);
+      var pad = 10;
+      var x = box.left - pad;
+      var y = box.top - pad;
+      var w = box.right - box.left + pad * 2;
+      var h = box.bottom - box.top + pad * 2;
+      ctx.save();
+      if (!match) {
+        ctx.fillStyle = dim;
+        ctx.fillRect(x, y, w, h);
+      } else {
+        ctx.shadowColor = 'rgba(245, 158, 11, 0.9)';
+        ctx.shadowBlur = 22;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 3.5;
+        ctx.strokeRect(x, y, w, h);
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.95)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+      }
+      ctx.restore();
+    }
+  }
+
   function drawDoneBadges(ctx, net) {
     if (!nodesDS || !ctx || !net) return;
+    badgeHitBoxes = [];
     var ids = nodesDS.getIds();
-    var perRow = 5;
+    var perCol = 5;
     var gap = 24;
     var r = 11;
     for (var i = 0; i < ids.length; i++) {
       var node = nodesDS.get(ids[i]);
       if (!node || node._ghost || !node._raw) continue;
-      var seqs = normalizeSeqList(node._doneSeq);
+      var seqs = normalizeSeqList(node._doneSeq).slice().sort(function (a, b) { return b - a; });
       if (!seqs.length) continue;
       var box = net.getBoundingBox(ids[i]);
       if (!box) continue;
       for (var si = 0; si < seqs.length; si++) {
-        var col = si % perRow;
-        var row = Math.floor(si / perRow);
+        var row = si % perCol;
+        var col = Math.floor(si / perCol);
         var x = box.right + 3 + col * gap;
-        var y = box.top - 3 - row * gap;
-        var label = String(seqs[si]);
+        var y = box.top - 3 + row * gap;
+        var seq = seqs[si];
+        var label = String(seq);
+        var active = hoverBadgeSeq != null;
+        var matched = active && hoverBadgeSeq === seq;
+        var faded = active && !matched;
+        badgeHitBoxes.push({ x: x, y: y, r: r + 3, seq: seq, nodeId: ids[i] });
         ctx.save();
-        ctx.shadowColor = 'rgba(245, 158, 11, 0.85)';
-        ctx.shadowBlur = 12;
+        if (faded) ctx.globalAlpha = 0.28;
+        ctx.shadowColor = matched ? 'rgba(253, 224, 71, 1)' : 'rgba(245, 158, 11, 0.85)';
+        ctx.shadowBlur = matched ? 20 : 12;
         ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#f59e0b';
+        ctx.arc(x, y, matched ? r + 2 : r, 0, Math.PI * 2);
+        ctx.fillStyle = matched ? '#fde047' : '#f59e0b';
         ctx.fill();
         ctx.shadowBlur = 0;
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.lineWidth = matched ? 3 : 2;
+        ctx.strokeStyle = matched ? '#0B0F19' : 'rgba(255,255,255,0.85)';
         ctx.stroke();
         ctx.fillStyle = '#0B0F19';
         ctx.font = 'bold ' + (label.length > 2 ? 9 : 11) + 'px Segoe UI, PingFang SC, sans-serif';
@@ -1153,6 +1202,52 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
         ctx.restore();
       }
     }
+  }
+
+  function hitTestBadge(canvasPos) {
+    if (!canvasPos || !badgeHitBoxes.length) return null;
+    var best = null;
+    var bestD = Infinity;
+    for (var i = 0; i < badgeHitBoxes.length; i++) {
+      var b = badgeHitBoxes[i];
+      var dx = canvasPos.x - b.x;
+      var dy = canvasPos.y - b.y;
+      var d = Math.sqrt(dx * dx + dy * dy);
+      if (d <= b.r && d < bestD) {
+        bestD = d;
+        best = b;
+      }
+    }
+    return best;
+  }
+
+  function setHoverBadgeSeq(seq) {
+    if (hoverBadgeSeq === seq) return;
+    hoverBadgeSeq = seq;
+    if (network) network.redraw();
+  }
+
+  function wireBadgePointer(net) {
+    if (badgePointerWired || !net || !net.canvas || !net.canvas.frame) return;
+    var canvas = net.canvas.frame.canvas;
+    if (!canvas) return;
+    badgePointerWired = true;
+    canvas.addEventListener('mousemove', function (e) {
+      try {
+        var rect = canvas.getBoundingClientRect();
+        var domPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        var canvasPos = net.DOMtoCanvas(domPos);
+        var hit = hitTestBadge(canvasPos);
+        canvas.style.cursor = hit ? 'pointer' : '';
+        setHoverBadgeSeq(hit ? hit.seq : null);
+      } catch (err) {
+        setHoverBadgeSeq(null);
+      }
+    });
+    canvas.addEventListener('mouseleave', function () {
+      canvas.style.cursor = '';
+      setHoverBadgeSeq(null);
+    });
   }
 
   function wireNetworkToolbar(net) {
@@ -1214,9 +1309,11 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     net.on('zoom', function () { positionToolbar(); });
     net.on('animationFinished', function () { positionToolbar(); });
     net.on('afterDrawing', function (ctx) {
+      drawBadgeHoverFx(ctx, net);
       drawDoneBadges(ctx, net);
       if (nodeToolbar.classList.contains('show') || activeToolbarId()) positionToolbar();
     });
+    wireBadgePointer(net);
   }
 
   nodeToolbar.addEventListener('mouseenter', function () {
@@ -1395,7 +1492,9 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       const st = styleFor(n.status || 'idea', isGhost);
       var doneSeqs = !isGhost ? normalizeSeqList(doneOrderMap[n.id]) : [];
       var tip = (isGhost ? '[ghost] ' : '') + (n.title || n.id) + '\n' + (n.status || '');
-      if (doneSeqs.length) tip += '\n#' + doneSeqs.join(' · #');
+      if (doneSeqs.length) {
+        tip += '\n#' + doneSeqs.slice().sort(function (a, b) { return b - a; }).join(' · #');
+      }
       nodesArr.push({
         id: n.id,
         label: n.title || n.id,
