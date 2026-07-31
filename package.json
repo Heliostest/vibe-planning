@@ -1,6 +1,6 @@
 {
   "name": "vibe-planning",
-  "version": "1.1.16",
+  "version": "1.1.17",
   "description": "Doc-backed dependency graph planning skill with live HTML board",
   "type": "module",
   "bin": {

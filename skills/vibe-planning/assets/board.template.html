@@ -1688,6 +1688,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   function setHoverBadgeSeq(seq) {
     if (hoverBadgeSeq === seq) return;
     hoverBadgeSeq = seq;
+    if (nodeDragging) return;
     if (seq != null) revealHoveredBadgeSeq(seq);
     if (network) network.redraw();
   }
@@ -1778,11 +1779,14 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       scheduleHideToolbar();
     });
     net.on('dragStart', function (p) {
+      nodeDragging = true;
       if (!p.nodes || !p.nodes.length) {
         subtreeDrag = null;
         return;
       }
       var rootId = p.nodes[0];
+      // Ensure drag works even if a prior stabilize left the node fixed.
+      try { nodesDS.update({ id: rootId, fixed: false }); } catch (e) { /* ignore */ }
       var pos = net.getPositions([rootId])[rootId];
       if (!pos) {
         subtreeDrag = null;
@@ -1820,6 +1824,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       }
     });
     net.on('dragEnd', function () {
+      nodeDragging = false;
       flushSaveLayout(net);
       subtreeDrag = null;
       positionToolbar();
@@ -2268,8 +2273,20 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     return n + '|' + e;
   }
 
+  var stabilizeGen = 0;
+  var nodeDragging = false;
+
+  function unfixAllNodes() {
+    if (!nodesDS) return;
+    var ids = nodesDS.getIds();
+    for (var i = 0; i < ids.length; i++) {
+      nodesDS.update({ id: ids[i], fixed: false });
+    }
+  }
+
   function stabilizeThenFreeze(doFit) {
     if (!network || !nodesDS) return;
+    var gen = ++stabilizeGen;
     var ids = nodesDS.getIds();
     var fixedIds = [];
     for (var i = 0; i < ids.length; i++) {
@@ -2278,12 +2295,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       nodesDS.update({ id: id, fixed: { x: true, y: true } });
       fixedIds.push(id);
     }
-    function unfixSaved() {
-      for (var j = 0; j < fixedIds.length; j++) {
-        nodesDS.update({ id: fixedIds[j], fixed: false });
-      }
-    }
     function applyFinal(doPhysicsCleanup) {
+      if (gen !== stabilizeGen) return;
       network.setOptions({ physics: { enabled: false } });
       var pos = doPhysicsCleanup ? resolveOverlaps(network.getPositions()) : network.getPositions();
       Object.keys(layoutPositions).forEach(function (id) {
@@ -2293,7 +2306,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       Object.keys(pos).forEach(function (id) {
         network.moveNode(id, pos[id].x, pos[id].y);
       });
-      unfixSaved();
+      unfixAllNodes();
       if (doFit || !didInitialFit) {
         network.fit({ animation: false });
         didInitialFit = true;
@@ -2307,6 +2320,11 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     network.once('stabilizationIterationsDone', function () {
       applyFinal(true);
     });
+    // Failsafe: never leave nodes permanently fixed if stabilization is interrupted.
+    setTimeout(function () {
+      if (gen !== stabilizeGen) return;
+      applyFinal(true);
+    }, 2500);
   }
 
   function renderTree(tree, opts) {
@@ -2370,6 +2388,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
         n.x = layoutPositions[n.id].x;
         n.y = layoutPositions[n.id].y;
       }
+      n.fixed = false;
       byId[n.id] = n;
     });
 
@@ -2396,6 +2415,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       stabilizeThenFreeze(!!opts.forceFit);
     } else {
       network.setOptions({ physics: { enabled: false } });
+      unfixAllNodes();
     }
 
     if (sel && nodesDS.get(sel)) {
