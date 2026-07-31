@@ -137,7 +137,41 @@
     color: #fcd34d;
   }
   #nodeToolbar button.icon-btn.primary:hover { background: #f59e0b; color: #0B0F19; border-color: #f59e0b; }
+  #nodeToolbar button.icon-btn.danger {
+    color: #fca5a5; border-color: rgba(248, 113, 113, 0.45);
+    background: rgba(127, 29, 29, 0.35);
+  }
+  #nodeToolbar button.icon-btn.danger:hover {
+    background: #ef4444; color: #fff; border-color: #ef4444;
+  }
   #nodeToolbar button.icon-btn svg { width: 16px; height: 16px; display: block; }
+  #proposePop {
+    position: absolute; z-index: 12; display: none;
+    width: min(320px, 80vw);
+    padding: 10px; border-radius: 14px;
+    background: var(--panel-solid); color: var(--text);
+    border: 1px solid var(--border);
+    box-shadow: 0 14px 36px rgba(0,0,0,0.45);
+    transform: translate(-50%, -100%);
+    pointer-events: auto;
+  }
+  #proposePop.show { display: block; }
+  #proposePop label {
+    display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px;
+  }
+  #proposeInput {
+    width: 100%; min-height: 72px; resize: vertical;
+    background: var(--input-bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 10px; font: 13px/1.4 inherit;
+  }
+  #proposeActions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  #proposeActions button { font-size: 12px; padding: 6px 10px; border-radius: 10px; }
+  #proposeSubmit {
+    background: rgba(245, 158, 11, 0.22); border-color: rgba(245, 158, 11, 0.55);
+    color: #fcd34d; font-weight: 700;
+  }
+  #proposeSubmit:hover { background: #f59e0b; color: #0B0F19; border-color: #f59e0b; }
   #toolbarTip {
     position: fixed; z-index: 30; display: none;
     min-width: 72px; max-width: min(320px, 70vw);
@@ -355,11 +389,33 @@
       <path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
     </svg>
   </button>
-  <button type="button" id="btnAdvance" class="icon-btn" data-tip="advance" aria-label="推进">
+  <button type="button" id="btnPropose" class="icon-btn" data-tip="propose" aria-label="提议">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>
+      <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
     </svg>
   </button>
+  <button type="button" id="btnAdvance" class="icon-btn" data-tip="advance" aria-label="推进">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9"/>
+      <path d="m18 15 4-4"/>
+      <path d="m21.5 11.5-1.914-1.914A3.5 3.5 0 0 0 16 4.5"/>
+      <path d="m14.7 6.3 3.9-3.9"/>
+    </svg>
+  </button>
+  <button type="button" id="btnDelete" class="icon-btn danger" data-tip="delete" aria-label="删除">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+      <path d="M10 11v6"/><path d="M14 11v6"/>
+    </svg>
+  </button>
+</div>
+<div id="proposePop" aria-hidden="true">
+  <label for="proposeInput" data-i18n="propose.label">基于此节点，描述要做的新功能</label>
+  <textarea id="proposeInput" rows="3" data-i18n-placeholder="propose.placeholder" placeholder="例如：在详情侧栏增加导出报告…"></textarea>
+  <div id="proposeActions">
+    <button type="button" id="proposeCancel" data-i18n="propose.cancel">取消</button>
+    <button type="button" id="proposeSubmit" data-i18n="propose.submit">生成 Ghost</button>
+  </div>
 </div>
 <div id="toolbarTip" aria-hidden="true">
   <div class="tip-name" id="toolbarTipName"></div>
@@ -491,12 +547,29 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'toolbar.inspire': '启发',
       'toolbar.inspire.purpose': '从当前节点发散下一步构想与分支方向。',
       'toolbar.inspire.how': '点击后复制「启发」提示词到剪贴板，粘贴到新对话即可继续 brainstorm。',
+      'toolbar.propose': '提议',
+      'toolbar.propose.purpose': '基于当前节点快速起草一个新功能，生成 Ghost 子节点。',
+      'toolbar.propose.how': '点击后在上方输入描述，确认后自动总结标题并写入 ghosts（parent/dependsOn 指向此节点）。',
       'toolbar.advance': '推进',
       'toolbar.advance.purpose': '推进该节点的下一步实施或设计工作。',
       'toolbar.advance.how': '点击后复制「推进」提示词到剪贴板，粘贴到新对话按提示执行。',
       'toolbar.advanceGhost': '推进→构想',
       'toolbar.advanceGhost.purpose': '把幽灵节点升为正式构想节点，写入计划树。',
       'toolbar.advanceGhost.how': '点击后调用晋升接口：去掉 ghost- 前缀，以 status: idea 写入 nodes。',
+      'toolbar.delete': '删除',
+      'toolbar.delete.purpose': '软删除：节点与关联边变为极暗淡，看起来像已删除。',
+      'toolbar.delete.how': '点击切换 removed 标记；再点一次可恢复显示。',
+      'toolbar.restore': '恢复',
+      'toolbar.restore.purpose': '取消软删除，恢复节点与边的正常显示。',
+      'toolbar.restore.how': '点击后清除 removed 标记并刷新看板。',
+      'propose.label': '基于此节点，描述要做的新功能',
+      'propose.placeholder': '例如：在详情侧栏增加导出报告…',
+      'propose.cancel': '取消',
+      'propose.submit': '生成 Ghost',
+      'toast.proposedGhost': '已生成 Ghost 节点',
+      'toast.proposeFail': '生成失败',
+      'toast.softDeleted': '已软删除（暗淡显示）',
+      'toast.restored': '已恢复显示',
       'toast.suggestCopied': '已复制「从此处建议」请求',
       'toast.inspireCopied': '已复制「启发」提示词到剪贴板',
       'toast.advanceCopied': '已复制「推进」提示词到剪贴板',
@@ -579,12 +652,29 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'toolbar.inspire': 'Inspire',
       'toolbar.inspire.purpose': 'Brainstorm next ideas and branches from this node.',
       'toolbar.inspire.how': 'Click to copy an Inspire prompt; paste it into a new chat to continue.',
+      'toolbar.propose': 'Propose',
+      'toolbar.propose.purpose': 'Draft a new feature from this node and create a Ghost child.',
+      'toolbar.propose.how': 'Click, type a short description above, then confirm to summarize a title into ghosts.',
       'toolbar.advance': 'Advance',
       'toolbar.advance.purpose': 'Move this node forward into the next design or implementation step.',
       'toolbar.advance.how': 'Click to copy an Advance prompt; paste it into a new chat and follow it.',
       'toolbar.advanceGhost': 'Advance → Idea',
       'toolbar.advanceGhost.purpose': 'Promote a ghost into a real idea node in the plan tree.',
       'toolbar.advanceGhost.how': 'Click to promote: strip the ghost- prefix and insert status: idea into nodes.',
+      'toolbar.delete': 'Delete',
+      'toolbar.delete.purpose': 'Soft-delete: dim the node and its edges so it looks removed.',
+      'toolbar.delete.how': 'Click to toggle the removed flag; click again to restore.',
+      'toolbar.restore': 'Restore',
+      'toolbar.restore.purpose': 'Undo soft-delete and restore normal node/edge styling.',
+      'toolbar.restore.how': 'Click to clear the removed flag and refresh the board.',
+      'propose.label': 'Describe a new feature based on this node',
+      'propose.placeholder': 'e.g. Add export report in the detail pane…',
+      'propose.cancel': 'Cancel',
+      'propose.submit': 'Create Ghost',
+      'toast.proposedGhost': 'Ghost node created',
+      'toast.proposeFail': 'Failed to create ghost',
+      'toast.softDeleted': 'Soft-deleted (dimmed)',
+      'toast.restored': 'Restored',
       'toast.suggestCopied': 'Copied suggest-from request',
       'toast.inspireCopied': 'Inspire prompt copied to clipboard',
       'toast.advanceCopied': 'Advance prompt copied to clipboard',
@@ -658,6 +748,10 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     document.querySelectorAll('[data-i18n-title]').forEach(function (el) {
       var key = el.getAttribute('data-i18n-title');
       if (key) el.setAttribute('title', t(key));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+      var key = el.getAttribute('data-i18n-placeholder');
+      if (key) el.setAttribute('placeholder', t(key));
     });
     var sel = document.getElementById('localeSelect');
     if (sel) sel.value = locale;
@@ -923,7 +1017,13 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
 
   const nodeToolbar = document.getElementById('nodeToolbar');
   const btnInspire = document.getElementById('btnInspire');
+  const btnPropose = document.getElementById('btnPropose');
   const btnAdvance = document.getElementById('btnAdvance');
+  const btnDelete = document.getElementById('btnDelete');
+  const proposePop = document.getElementById('proposePop');
+  const proposeInput = document.getElementById('proposeInput');
+  const proposeCancel = document.getElementById('proposeCancel');
+  const proposeSubmit = document.getElementById('proposeSubmit');
   const toolbarTip = document.getElementById('toolbarTip');
   const toolbarTipName = document.getElementById('toolbarTipName');
   const toolbarTipPurpose = document.getElementById('toolbarTipPurpose');
@@ -931,6 +1031,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   var tipTimers = [];
   var tipStage = 0;
   var tipBtn = null;
+  var proposeSourceId = null;
 
   function activeToolbarId() {
     if (hoverNodeId) return hoverNodeId;
@@ -958,6 +1059,23 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
         name: 'toolbar.inspire',
         purpose: 'toolbar.inspire.purpose',
         how: 'toolbar.inspire.how',
+      };
+    }
+    if (kind === 'propose') {
+      return {
+        name: 'toolbar.propose',
+        purpose: 'toolbar.propose.purpose',
+        how: 'toolbar.propose.how',
+      };
+    }
+    if (kind === 'delete') {
+      var delId = toolbarNodeId || activeToolbarId();
+      var delNode = delId && nodesDS ? nodesDS.get(delId) : null;
+      var removed = !!(delNode && delNode._raw && delNode._raw.removed);
+      return {
+        name: removed ? 'toolbar.restore' : 'toolbar.delete',
+        purpose: removed ? 'toolbar.restore.purpose' : 'toolbar.delete.purpose',
+        how: removed ? 'toolbar.restore.how' : 'toolbar.delete.how',
       };
     }
     var id = toolbarNodeId || activeToolbarId();
@@ -1017,15 +1135,44 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     var id = toolbarNodeId || activeToolbarId();
     var node = id && nodesDS ? nodesDS.get(id) : null;
     var ghost = !!(node && node._ghost);
+    var removed = !!(node && node._raw && node._raw.removed);
     btnInspire.setAttribute('aria-label', t('toolbar.inspire'));
     btnInspire.setAttribute('title', '');
+    btnPropose.setAttribute('aria-label', t('toolbar.propose'));
+    btnPropose.setAttribute('title', '');
     btnAdvance.setAttribute('aria-label', t(ghost ? 'toolbar.advanceGhost' : 'toolbar.advance'));
     btnAdvance.setAttribute('title', '');
+    btnDelete.setAttribute('aria-label', t(removed ? 'toolbar.restore' : 'toolbar.delete'));
+    btnDelete.setAttribute('title', '');
+  }
+
+  function hideProposePop() {
+    proposeSourceId = null;
+    proposePop.classList.remove('show');
+    proposePop.setAttribute('aria-hidden', 'true');
+  }
+
+  function positionProposePop() {
+    if (!proposePop.classList.contains('show') || !nodeToolbar.classList.contains('show')) return;
+    var left = parseFloat(nodeToolbar.style.left) || 0;
+    var top = parseFloat(nodeToolbar.style.top) || 0;
+    proposePop.style.left = left + 'px';
+    proposePop.style.top = (top - 10) + 'px';
+  }
+
+  function showProposePop(sourceId) {
+    proposeSourceId = sourceId;
+    proposeInput.value = '';
+    proposePop.classList.add('show');
+    proposePop.setAttribute('aria-hidden', 'false');
+    positionProposePop();
+    setTimeout(function () { proposeInput.focus(); }, 0);
   }
 
   function hideToolbar() {
     toolbarNodeId = null;
     hideToolbarTip();
+    hideProposePop();
     nodeToolbar.classList.remove('show');
   }
 
@@ -1033,7 +1180,6 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     if (!network) { hideToolbar(); return; }
     var id = activeToolbarId();
     if (!id || !nodesDS || !nodesDS.get(id)) { hideToolbar(); return; }
-    var node = nodesDS.get(id);
     btnAdvance.hidden = false;
     syncToolbarButtonLabels();
     try {
@@ -1044,6 +1190,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       nodeToolbar.style.left = dom.x + 'px';
       nodeToolbar.style.top = (dom.y - 18) + 'px';
       nodeToolbar.classList.add('show');
+      positionProposePop();
       if (tipBtn && tipStage >= 1) placeToolbarTip(tipBtn);
     } catch (e) {
       hideToolbar();
@@ -1061,9 +1208,16 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     clearBlurTimer();
     blurTimer = setTimeout(function () {
       blurTimer = null;
+      if (proposePop.classList.contains('show') &&
+          (proposePop.contains(document.activeElement) || proposeInput === document.activeElement)) {
+        return;
+      }
       hoverNodeId = null;
       if (!(selected && selected.id)) hideToolbar();
-      else positionToolbar();
+      else {
+        hideProposePop();
+        positionToolbar();
+      }
     }, 180);
   }
 
@@ -1482,14 +1636,14 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     scheduleHideToolbar();
   });
 
-  [btnInspire, btnAdvance].forEach(function (btn) {
+  [btnInspire, btnPropose, btnAdvance, btnDelete].forEach(function (btn) {
     btn.addEventListener('mouseenter', function () {
       clearBlurTimer();
       startToolbarTip(btn);
     });
     btn.addEventListener('mouseleave', function (e) {
       var to = e.relatedTarget;
-      if (to && (btn.contains(to) || nodeToolbar.contains(to))) return;
+      if (to && (btn.contains(to) || nodeToolbar.contains(to) || proposePop.contains(to))) return;
       hideToolbarTip();
     });
     btn.addEventListener('focus', function () {
@@ -1500,9 +1654,13 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     });
   });
 
+  proposePop.addEventListener('mouseenter', function () { clearBlurTimer(); });
+  proposePop.addEventListener('mouseleave', function () { scheduleHideToolbar(); });
+
   btnInspire.addEventListener('click', function (e) {
     e.stopPropagation();
     hideToolbarTip();
+    hideProposePop();
     var id = toolbarNodeId || activeToolbarId();
     if (!id || !nodesDS) return;
     var node = nodesDS.get(id);
@@ -1510,9 +1668,54 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     copyText(buildInspirePrompt(node._raw || {}), 'toast.inspireCopied');
   });
 
+  btnPropose.addEventListener('click', function (e) {
+    e.stopPropagation();
+    hideToolbarTip();
+    var id = toolbarNodeId || activeToolbarId();
+    if (!id) return;
+    if (proposePop.classList.contains('show') && proposeSourceId === id) {
+      hideProposePop();
+      return;
+    }
+    showProposePop(id);
+  });
+
+  proposeCancel.addEventListener('click', function (e) {
+    e.stopPropagation();
+    hideProposePop();
+  });
+
+  proposeSubmit.addEventListener('click', async function (e) {
+    e.stopPropagation();
+    var id = proposeSourceId || toolbarNodeId || activeToolbarId();
+    var text = (proposeInput.value || '').trim();
+    if (!id || !text) return;
+    proposeSubmit.disabled = true;
+    try {
+      var res = await fetch('/api/propose-ghost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId: id, text: text }),
+      });
+      var json = await res.json();
+      if (!res.ok || !json.ok) {
+        toast((json && json.error) || t('toast.proposeFail'));
+        return;
+      }
+      hideProposePop();
+      toast(t('toast.proposedGhost'));
+      await reloadTree({ force: true });
+    } catch (err) {
+      toast(String(err && err.message ? err.message : err));
+    } finally {
+      proposeSubmit.disabled = false;
+    }
+  });
+
   btnAdvance.addEventListener('click', async function (e) {
     e.stopPropagation();
     hideToolbarTip();
+    hideProposePop();
     var id = toolbarNodeId || activeToolbarId();
     if (!id || !nodesDS) return;
     var node = nodesDS.get(id);
@@ -1540,6 +1743,33 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       return;
     }
     copyText(buildAdvancePrompt(node._raw || {}), 'toast.advanceCopied');
+  });
+
+  btnDelete.addEventListener('click', async function (e) {
+    e.stopPropagation();
+    hideToolbarTip();
+    hideProposePop();
+    var id = toolbarNodeId || activeToolbarId();
+    if (!id || !nodesDS) return;
+    btnDelete.disabled = true;
+    try {
+      var res = await fetch('/api/soft-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id }),
+      });
+      var json = await res.json();
+      if (!res.ok || !json.ok) {
+        toast((json && json.error) || ('HTTP ' + res.status));
+        return;
+      }
+      toast(t(json.removed ? 'toast.softDeleted' : 'toast.restored'));
+      await reloadTree({ force: true });
+    } catch (err) {
+      toast(String(err && err.message ? err.message : err));
+    } finally {
+      btnDelete.disabled = false;
+    }
   });
 
   function updateMeta() {
@@ -1670,33 +1900,66 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       idSet.add(n.id);
       const st = styleFor(n.status || 'idea', isGhost);
       var doneSeqs = !isGhost ? normalizeSeqList(doneOrderMap[n.id]) : [];
-      nodesArr.push({
+      var removed = !!n.removed;
+      var nodeObj = {
         id: n.id,
         label: n.title || n.id,
         ...st,
         _raw: n,
         _ghost: !!isGhost,
         _doneSeq: doneSeqs,
-      });
+        _removed: removed,
+      };
+      if (removed) {
+        nodeObj.opacity = 0.18;
+        nodeObj.font = Object.assign({}, st.font, {
+          color: theme === 'light' ? 'rgba(55,65,81,0.35)' : 'rgba(156,163,175,0.35)',
+        });
+        nodeObj.color = {
+          background: theme === 'light' ? 'rgba(156,163,175,0.12)' : 'rgba(7,11,20,0.35)',
+          border: theme === 'light' ? 'rgba(107,114,128,0.25)' : 'rgba(75,85,99,0.35)',
+          highlight: {
+            background: theme === 'light' ? 'rgba(156,163,175,0.18)' : 'rgba(17,24,39,0.45)',
+            border: theme === 'light' ? 'rgba(107,114,128,0.4)' : 'rgba(107,114,128,0.5)',
+          },
+          hover: {
+            background: theme === 'light' ? 'rgba(156,163,175,0.18)' : 'rgba(17,24,39,0.45)',
+            border: theme === 'light' ? 'rgba(107,114,128,0.4)' : 'rgba(107,114,128,0.5)',
+          },
+        };
+        nodeObj.shadow = { enabled: false, size: 0, x: 0, y: 0 };
+      }
+      nodesArr.push(nodeObj);
+    }
+
+    function edgeDimmed(n, otherId) {
+      if (n && n.removed) return true;
+      var other =
+        list.find(function (x) { return x && x.id === otherId; }) ||
+        ghosts.find(function (x) { return x && x.id === otherId; });
+      return !!(other && other.removed);
     }
 
     function addEdges(n) {
       var light = theme === 'light';
       if (n.parent) {
+        var pDim = edgeDimmed(n, n.parent);
         edgesArr.push({
           id: 'p:' + n.parent + '>' + n.id,
           from: n.parent, to: n.id, arrows: { to: { enabled: true, scaleFactor: 0.85 } },
           color: {
-            color: light ? 'rgba(75, 85, 99, 0.9)' : 'rgba(156, 163, 175, 0.95)',
+            color: pDim
+              ? (light ? 'rgba(75, 85, 99, 0.12)' : 'rgba(75, 85, 99, 0.18)')
+              : (light ? 'rgba(75, 85, 99, 0.9)' : 'rgba(156, 163, 175, 0.95)'),
             highlight: light ? '#d97706' : '#f59e0b',
             hover: light ? '#b45309' : '#fcd34d',
-            opacity: 0.95,
+            opacity: pDim ? 0.12 : 0.95,
           },
-          width: 3.5,
+          width: pDim ? 1.2 : 3.5,
           selectionWidth: 5,
           length: 140,
           smooth: false,
-          shadow: {
+          shadow: pDim ? { enabled: false } : {
             enabled: true,
             color: light ? 'rgba(75,85,99,0.25)' : 'rgba(156,163,175,0.45)',
             size: 10, x: 0, y: 0,
@@ -1706,21 +1969,24 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       const deps = Array.isArray(n.dependsOn) ? n.dependsOn : [];
       for (const d of deps) {
         if (!d) continue;
+        var dDim = edgeDimmed(n, d);
         edgesArr.push({
           id: 'd:' + d + '>' + n.id,
           from: d, to: n.id, arrows: { to: { enabled: true, scaleFactor: 0.75 } },
           color: {
-            color: light ? 'rgba(2, 132, 199, 0.55)' : 'rgba(56, 189, 248, 0.55)',
+            color: dDim
+              ? (light ? 'rgba(2, 132, 199, 0.1)' : 'rgba(56, 189, 248, 0.12)')
+              : (light ? 'rgba(2, 132, 199, 0.55)' : 'rgba(56, 189, 248, 0.55)'),
             highlight: light ? '#0284c7' : '#38bdf8',
             hover: light ? '#0369a1' : '#7dd3fc',
-            opacity: 0.7,
+            opacity: dDim ? 0.1 : 0.7,
           },
-          width: 2.5,
+          width: dDim ? 1 : 2.5,
           selectionWidth: 4,
           dashes: [8, 6],
           length: 230,
           smooth: false,
-          shadow: {
+          shadow: dDim ? { enabled: false } : {
             enabled: true,
             color: light ? 'rgba(2,132,199,0.25)' : 'rgba(56,189,248,0.35)',
             size: 12, x: 0, y: 0,
@@ -1857,6 +2123,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       // vis-network clears container children; re-attach floating toolbar
       nodeToolbar.hidden = false;
       graphEl.appendChild(nodeToolbar);
+      graphEl.appendChild(proposePop);
       network.on('click', function (p) {
         if (!p.nodes.length) {
           hoverNodeId = null;

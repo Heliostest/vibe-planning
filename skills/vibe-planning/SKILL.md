@@ -1,6 +1,6 @@
----
+﻿---
 name: vibe-planning
-version: 1.1.10
+version: 1.1.11
 description: >-
   Maintains a doc-backed dependency graph for product planning: indexes specs/plans
   in plan-tree.yaml, aligns cached status from linked docs, suggests next work from
@@ -11,12 +11,12 @@ description: >-
   roadmapped.
 disable-model-invocation: true
 metadata:
-  version: "1.1.10"
+  version: "1.1.11"
 ---
 
 # vibe-planning
 
-**版本 1.1.10**
+**版本 1.1.11**
 
 文档（specs/plans/roadmaps）是**唯一真相源**。`plan-tree.yaml` 是索引/缓存，供看板展示与交互；文档与 YAML 冲突时以文档扫描结果为准。
 
@@ -110,7 +110,7 @@ npx --yes github:Heliostest/vibe-planning serve "<projectRoot>" --open
 - 看板：默认 `http://localhost:7465/`；端口占用时自动 +1（最多尝试 30 次）
 - 启动时打印实际 URL；`--open` 跨平台打开浏览器
 - 零 npm 依赖；YAML 助手在 `scripts/lib/yaml-mini.mjs`
-- API：`GET /api/tree`、`GET/POST /api/layout`、`POST /api/relayout`、`GET /api/health`、`GET /api/events`（SSE `reload`）、`POST /api/sync`、`POST /api/promote-ghost`、`GET /api/sync-prompt`
+- API：`GET /api/tree`、`GET/POST /api/layout`、`POST /api/relayout`、`GET /api/health`、`GET /api/events`（SSE `reload`）、`POST /api/sync`、`POST /api/promote-ghost`、`POST /api/propose-ghost`、`POST /api/soft-delete`、`GET /api/sync-prompt`
 - 看板加载后拉 `/api/tree` + `/api/layout` 重绘；拖拽位置写入 `layout.json`；「重排」写整表 layout；SSE + 每 2s 轮询
 
 解析 `<skill>`：Cursor/Claude 下通常为 `~/.cursor/skills/vibe-planning` 或项目内 `.cursor/skills/vibe-planning`；也可用 `node <repo>/bin/vibe-planning.mjs skill-path`。

@@ -1,6 +1,6 @@
 # vibe-planning
 
-**v1.1.10** Â· [![skills.sh](https://skills.sh/b/Heliostest/vibe-planning)](https://skills.sh/Heliostest/vibe-planning)
+**v1.1.11** Â· [![skills.sh](https://skills.sh/b/Heliostest/vibe-planning)](https://skills.sh/Heliostest/vibe-planning)
 
 Doc-backed dependency graph for product planning. Specs/plans are the source of truth; `plan-tree.yaml` is an index; a live HTML board shows deps, syncs from git/docs, and persists drag layout.
 
@@ -10,7 +10,7 @@ Works with **Cursor**, **Claude Code**, **Codex**, and other agents that support
 
 | Tool | Version | Notes |
 |------|---------|--------|
-| **Node.js** | â‰¥ 18 | Board server + CLI (`serve` / `render`). Zero npm deps at runtime. |
+| **Node.js** | â‰?18 | Board server + CLI (`serve` / `render`). Zero npm deps at runtime. |
 | **git** | optional | Used by repo sync heuristics |
 
 Install Node:
@@ -21,7 +21,7 @@ Install Node:
 
 ## Install the skill
 
-### Recommended â€” skills.sh CLI
+### Recommended â€?skills.sh CLI
 
 ```bash
 npx skills@latest add Heliostest/vibe-planning
@@ -76,7 +76,7 @@ Copy `skills/vibe-planning/` into one of:
 - `~/.claude/skills/vibe-planning`
 - `~/.codex/skills/vibe-planning`
 - `~/.agents/skills/vibe-planning`
-- or the project equivalents under `.cursor/skills/`, `.claude/skills/`, â€¦
+- or the project equivalents under `.cursor/skills/`, `.claude/skills/`, â€?
 
 ## Run the board
 
@@ -121,7 +121,7 @@ vibe-planning/
 - Index specs/plans in `plan-tree.yaml`
 - Live dependency board (HTTP + SSE)
 - Sync from docs/git; AI sync prompt for LLM-assisted tree edits
-- Ghost suggestions â†’ promote to real nodes
+- Ghost suggestions â†?promote to real nodes
 - Persist node drag layout to `layout.json`
 
 See [`skills/vibe-planning/SKILL.md`](./skills/vibe-planning/SKILL.md) and [`reference.md`](./skills/vibe-planning/reference.md).

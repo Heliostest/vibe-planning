@@ -12,6 +12,7 @@ import { spawn } from 'node:child_process';
 import { parseYaml } from './lib/yaml-mini.mjs';
 import { runSync, buildAiSyncPrompt } from './lib/sync-repo.mjs';
 import { promoteGhost } from './lib/promote-ghost.mjs';
+import { proposeGhost, toggleRemoved } from './lib/propose-ghost.mjs';
 import { readLayout, mergeLayout, writeLayout } from './lib/layout-store.mjs';
 import { autoLayout } from './lib/auto-layout.mjs';
 import { readDoneOrder, mergeDoneOrder } from './lib/done-order-store.mjs';
@@ -38,7 +39,7 @@ function readVersion() {
       }
     } catch { /* try next */ }
   }
-  return '1.1.10';
+  return '1.1.11';
 }
 
 const VERSION = readVersion();
@@ -242,6 +243,38 @@ function main() {
         if (!result.ok) return sendJson(res, 404, { ok: false, error: result.error || 'ghost not found' });
         broadcastReload();
         return sendJson(res, 200, { ok: true, node: result.node });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/propose-ghost') {
+        const raw = await readBody(req);
+        let body = {};
+        try { body = raw ? JSON.parse(raw) : {}; } catch {
+          return sendJson(res, 400, { ok: false, error: 'invalid JSON' });
+        }
+        const sourceId = body && body.sourceId;
+        const text = body && body.text;
+        if (!sourceId) return sendJson(res, 400, { ok: false, error: 'sourceId required' });
+        const result = proposeGhost(yamlPath(projectRoot), { sourceId, text });
+        if (!result.ok) {
+          const code = result.error === 'source not found' ? 404 : 400;
+          return sendJson(res, code, { ok: false, error: result.error || 'failed' });
+        }
+        broadcastReload();
+        return sendJson(res, 200, { ok: true, ghost: result.ghost });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/soft-delete') {
+        const raw = await readBody(req);
+        let body = {};
+        try { body = raw ? JSON.parse(raw) : {}; } catch {
+          return sendJson(res, 400, { ok: false, error: 'invalid JSON' });
+        }
+        const id = body && body.id;
+        if (!id) return sendJson(res, 400, { ok: false, error: 'id required' });
+        const result = toggleRemoved(yamlPath(projectRoot), id);
+        if (!result.ok) return sendJson(res, 404, { ok: false, error: result.error || 'node not found' });
+        broadcastReload();
+        return sendJson(res, 200, { ok: true, removed: result.removed, node: result.node });
       }
 
       if (req.method === 'GET' && pathname === '/api/layout') {
