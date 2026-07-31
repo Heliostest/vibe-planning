@@ -83,7 +83,7 @@
     box-shadow: 0 0 16px rgba(245, 158, 11, 0.18);
   }
   #btnSync:hover { background: #f59e0b; color: #0B0F19; border-color: #f59e0b; }
-  #btnAiPrompt { white-space: nowrap; }
+  #btnRelayout { white-space: nowrap; }
   #btnSettings { white-space: nowrap; }
   #btnTour { white-space: nowrap; }
   #legend { display: flex; flex-wrap: wrap; gap: 8px 12px; }
@@ -283,11 +283,10 @@
       <span class="chip"><span class="swatch ghost"></span><span data-i18n="status.ghost">ghost</span></span>
     </div>
     <div class="actions">
-      <button type="button" id="btnSync" data-tour="sync" data-i18n="sync" data-i18n-title="sync.title">Sync repo</button>
-      <button type="button" id="btnAiPrompt" data-tour="ai" data-i18n="aiPrompt" data-i18n-title="aiPrompt.title">AI prompt</button>
+      <button type="button" id="btnSync" data-tour="sync" data-i18n="sync" data-i18n-title="sync.title">Sync</button>
+      <button type="button" id="btnRelayout" data-tour="relayout" data-i18n="relayout" data-i18n-title="relayout.title">Relayout</button>
       <button type="button" id="btnTour" data-i18n="tour" data-i18n-title="tour.title">Tutorial</button>
       <button type="button" id="btnSettings" data-tour="settings" data-i18n="settings">⚙ Settings</button>
-      <a id="syncLink" href="/api/sync-prompt" target="_blank" hidden data-i18n="sync.promptLink">sync-prompt</a>
     </div>
   </header>
   <main>
@@ -373,19 +372,17 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   let toolbarNodeId = null;
   let blurTimer = null;
   let lastSyncSummary = '';
-  let syncPromptWritten = false;
   var layoutPositions = {};
   var layoutSaveTimer = null;
   var doneOrderMap = {};
 
   const I18N = {
     'zh-CN': {
-      sync: '同步仓库',
-      'sync.title': '扫描文档与 git 并更新计划树',
-      'sync.promptLink': 'sync-prompt',
-      'sync.wrotePrompt': '已写 sync-prompt',
-      aiPrompt: 'AI 提示词',
-      'aiPrompt.title': 'AI 同步提示词',
+      sync: '同步',
+      'sync.title': '扫描仓库并生成可贴的 AI 提示词',
+      relayout: '重排',
+      'relayout.title': '按 parent / 依赖顺序一键重排节点位置',
+      'aiPrompt.title': '同步提示词',
       'aiPrompt.copy': '复制',
       'aiPrompt.close': '关闭',
       settings: '⚙ 设置',
@@ -426,13 +423,15 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'toast.advanceCopied': '已复制「推进」提示词',
       'toast.promotedIdea': '已推进为构想节点',
       'toast.copyPrompt': '复制以下内容:',
-      'toast.syncing': '正在同步仓库…',
+      'toast.syncing': '正在同步…',
       'toast.syncDone': '同步完成',
       'toast.syncFail': '同步失败',
       'toast.syncFailWith': '同步失败: ',
-      'toast.generating': '正在生成 AI 提示词…',
+      'toast.relayout': '正在重排…',
+      'toast.relayoutDone': '已重排',
+      'toast.relayoutFail': '重排失败',
       'toast.copied': '已复制到剪贴板',
-      'toast.fail': '生成失败',
+      'toast.fail': '失败',
       tour: '教程',
       'tour.title': '重播使用教程',
       'tour.skip': '跳过',
@@ -445,11 +444,11 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s2.title': '状态色板',
       'tour.s2.body': '节点颜色代表进度：构想→提议→规划→进行中→完成；虚线是延期/幽灵。完成节点右上角数字是第几个做完的。',
       'tour.s3.title': '依赖图',
-      'tour.s3.body': '拖动节点可重排（父节点会带上子孙）；位置会自动保存。点击节点看右侧详情。',
-      'tour.s4.title': '同步仓库',
-      'tour.s4.body': '扫描项目文档与 git，启发式更新 plan-tree：对齐状态、挂上新发现的 design/plan（按实现顺序连边）。',
-      'tour.s5.title': 'AI 提示词',
-      'tour.s5.body': '生成可贴给 LLM 的详细同步提示（只读扫描，不自动改 YAML）。让 AI 帮你整理树后再刷新看板。',
+      'tour.s3.body': '拖动节点可重排（父节点会带上子孙）；位置会自动保存。也可点「重排」一键按树结构排开。',
+      'tour.s4.title': '同步',
+      'tour.s4.body': '扫描文档与 git，更新 plan-tree，并弹出可贴给 LLM 的提示词。一次搞定。',
+      'tour.s5.title': '重排',
+      'tour.s5.body': '按 parent 与依赖顺序自动排布节点，减少连线交叉。拖拽仍可微调。',
       'tour.s6.title': '节点详情与建议',
       'tour.s6.body': '选中节点后这里显示文档与依赖。「从此处建议」会复制一段请求，方便开新对话从该节点往下拆。',
       'tour.s7.title': '悬停工具栏',
@@ -458,12 +457,11 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s8.body': '设置里可切换语言与浅色/深色。随时点「教程」可重播本引导。开始规划吧！',
     },
     en: {
-      sync: 'Sync repo',
-      'sync.title': 'Scan docs + git and update plan tree',
-      'sync.promptLink': 'sync-prompt',
-      'sync.wrotePrompt': 'Wrote sync-prompt',
-      aiPrompt: 'AI prompt',
-      'aiPrompt.title': 'AI sync prompt',
+      sync: 'Sync',
+      'sync.title': 'Scan repo and open an AI sync prompt',
+      relayout: 'Relayout',
+      'relayout.title': 'Auto-arrange nodes by parent / dependency order',
+      'aiPrompt.title': 'Sync prompt',
       'aiPrompt.copy': 'Copy',
       'aiPrompt.close': 'Close',
       settings: '⚙ Settings',
@@ -504,13 +502,15 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'toast.advanceCopied': 'Copied advance prompt',
       'toast.promotedIdea': 'Promoted to idea node',
       'toast.copyPrompt': 'Copy the following:',
-      'toast.syncing': 'Syncing repo…',
+      'toast.syncing': 'Syncing…',
       'toast.syncDone': 'Sync complete',
       'toast.syncFail': 'Sync failed',
       'toast.syncFailWith': 'Sync failed: ',
-      'toast.generating': 'Generating AI prompt…',
+      'toast.relayout': 'Relayout…',
+      'toast.relayoutDone': 'Layout updated',
+      'toast.relayoutFail': 'Relayout failed',
       'toast.copied': 'Copied to clipboard',
-      'toast.fail': 'Failed to generate',
+      'toast.fail': 'Failed',
       tour: 'Tutorial',
       'tour.title': 'Replay the tutorial',
       'tour.skip': 'Skip',
@@ -523,11 +523,11 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'tour.s2.title': 'Status colors',
       'tour.s2.body': 'Colors show progress: idea → proposed → planned → doing → done. Dashed = deferred/ghost. Yellow badges on done nodes mark completion order.',
       'tour.s3.title': 'The graph',
-      'tour.s3.body': 'Drag nodes to rearrange (parents move children). Positions persist. Click a node for the side panel.',
-      'tour.s4.title': 'Sync repo',
-      'tour.s4.body': 'Scans docs + git and heuristically updates plan-tree: align status and attach new design/plan docs in implementation order.',
-      'tour.s5.title': 'AI prompt',
-      'tour.s5.body': 'Builds a detailed LLM prompt from a read-only scan (does not edit YAML). Paste it into a chat, then refresh the board.',
+      'tour.s3.body': 'Drag nodes to rearrange (parents move children). Positions persist. Or click Relayout for a tidy tree.',
+      'tour.s4.title': 'Sync',
+      'tour.s4.body': 'Scans docs + git, updates plan-tree, and opens a copyable LLM prompt. One button.',
+      'tour.s5.title': 'Relayout',
+      'tour.s5.body': 'Auto-arranges nodes by parent and dependency order to reduce edge crossings. Drag to fine-tune.',
       'tour.s6.title': 'Details & suggest',
       'tour.s6.body': 'Selected node shows docs and deps. “Suggest from here” copies a request you can paste to continue from that node.',
       'tour.s7.title': 'Hover toolbar',
@@ -573,10 +573,6 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     });
     var sel = document.getElementById('localeSelect');
     if (sel) sel.value = locale;
-    if (syncPromptWritten) {
-      var link = document.getElementById('syncLink');
-      if (link) link.textContent = t('sync.wrotePrompt');
-    }
     updateMeta();
     if (selected) showDetail(selected);
     else {
@@ -1512,9 +1508,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
   const detail = document.getElementById('detail');
   const btn = document.getElementById('btnSuggest');
   const btnSync = document.getElementById('btnSync');
-  const btnAiPrompt = document.getElementById('btnAiPrompt');
+  const btnRelayout = document.getElementById('btnRelayout');
   const btnSettings = document.getElementById('btnSettings');
-  const syncLink = document.getElementById('syncLink');
   const ghostHint = document.getElementById('ghostHint');
   const ghostList = document.getElementById('ghostList');
   const settingsModal = document.getElementById('settingsModal');
@@ -1544,7 +1539,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     { key: 's2', target: '[data-tour="legend"]' },
     { key: 's3', target: '[data-tour="graph"]' },
     { key: 's4', target: '[data-tour="sync"]' },
-    { key: 's5', target: '[data-tour="ai"]' },
+    { key: 's5', target: '[data-tour="relayout"]' },
     { key: 's6', target: '[data-tour="aside"]' },
     { key: 's7', target: '[data-tour="graph"]' },
     { key: 's8', target: '[data-tour="settings"]' },
@@ -1797,13 +1792,9 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       const json = await res.json();
       lastSyncSummary = json.summary || '';
       updateMeta();
-      if (json.promptPath) {
-        syncPromptWritten = true;
-        syncLink.hidden = false;
-        syncLink.textContent = t('sync.wrotePrompt');
-      }
       toast(json.summary || (json.ok ? t('toast.syncDone') : t('toast.syncFail')));
       await reloadTree({ force: true });
+      if (json.prompt) openPromptModal(json.prompt);
     } catch (e) {
       toast(t('toast.syncFailWith') + (e && e.message ? e.message : e));
     } finally {
@@ -1812,23 +1803,24 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     }
   });
 
-  btnAiPrompt.addEventListener('click', async function () {
-    btnAiPrompt.disabled = true;
-    btnAiPrompt.classList.add('busy');
-    toast(t('toast.generating'));
+  btnRelayout.addEventListener('click', async function () {
+    btnRelayout.disabled = true;
+    btnRelayout.classList.add('busy');
+    toast(t('toast.relayout'));
     try {
-      const res = await fetch('/api/ai-sync-prompt', { method: 'POST' });
+      const res = await fetch('/api/relayout', { method: 'POST' });
       const json = await res.json();
-      if (!json.ok || !json.prompt) {
-        toast(json.summary || t('toast.fail'));
+      if (!json.ok) {
+        toast(t('toast.relayoutFail'));
         return;
       }
-      openPromptModal(json.prompt);
+      toast(t('toast.relayoutDone') + ' · ' + (json.count || 0));
+      await reloadTree({ force: true, forceFit: true });
     } catch (e) {
-      toast(t('toast.fail') + ': ' + (e && e.message ? e.message : e));
+      toast(t('toast.relayoutFail') + ': ' + (e && e.message ? e.message : e));
     } finally {
-      btnAiPrompt.disabled = false;
-      btnAiPrompt.classList.remove('busy');
+      btnRelayout.disabled = false;
+      btnRelayout.classList.remove('busy');
     }
   });
 

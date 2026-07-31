@@ -37,22 +37,33 @@ function sanitizePositions(positions) {
   return out;
 }
 
-export function mergeLayout(projectRoot, partialPositions) {
+function atomicWriteLayout(projectRoot, positions) {
   const dir = path.join(projectRoot, 'docs', 'vibe-planning');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const current = readLayout(projectRoot);
-  const merged = {
+  const layout = {
     version: 1,
-    positions: Object.assign({}, current.positions, sanitizePositions(partialPositions)),
+    positions: sanitizePositions(positions),
   };
   const p = layoutPath(projectRoot);
   const tmp = p + '.' + process.pid + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(merged, null, 2) + '\n', 'utf8');
+  fs.writeFileSync(tmp, JSON.stringify(layout, null, 2) + '\n', 'utf8');
   try {
     fs.renameSync(tmp, p);
   } catch {
     try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch { /* ignore */ }
     fs.renameSync(tmp, p);
   }
-  return merged;
+  return layout;
+}
+
+export function writeLayout(projectRoot, positions) {
+  return atomicWriteLayout(projectRoot, positions);
+}
+
+export function mergeLayout(projectRoot, partialPositions) {
+  const current = readLayout(projectRoot);
+  return atomicWriteLayout(
+    projectRoot,
+    Object.assign({}, current.positions, sanitizePositions(partialPositions)),
+  );
 }

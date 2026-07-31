@@ -1,22 +1,22 @@
 ---
 name: vibe-planning
-version: 1.1.1
+version: 1.1.2
 description: >-
   Maintains a doc-backed dependency graph for product planning: indexes specs/plans
   in plan-tree.yaml, aligns cached status from linked docs, suggests next work from
   a node as ghost children, serves a live hierarchical HTML board over HTTP, and
   syncs the tree from repo docs/git. Use when the user mentions vibe-planning,
-  plan-tree, dependency board, HTTP server, 「同步仓库」, sync-prompt, 「从此处建议」,
+  plan-tree, dependency board, HTTP server, 「同步」, 「重排」, sync-prompt, 「从此处建议」,
   align board, ghost nodes, or wants a roadmapped-style deps view without installing
   roadmapped.
 disable-model-invocation: true
 metadata:
-  version: "1.1.1"
+  version: "1.1.2"
 ---
 
 # vibe-planning
 
-**版本 1.1.1**
+**版本 1.1.2**
 
 文档（specs/plans/roadmaps）是**唯一真相源**。`plan-tree.yaml` 是索引/缓存，供看板展示与交互；文档与 YAML 冲突时以文档扫描结果为准。
 
@@ -29,8 +29,7 @@ metadata:
 - 布局：`layout.json`（节点拖拽坐标，与 plan-tree 分离）
 - 完成序：`done-order.json`（done 节点右上角序号，按完成先后；缺省按 docs 日期启发补齐）
 - 看板：HTTP 实时服务（主路径）；可选静态 `board.html`
-- 同步提示：`sync-prompt.md`（「同步仓库」生成）
-- AI 同步提示：`ai-sync-prompt.md`（「AI 提示词」生成，可贴进 LLM 对话）
+- 同步提示：`sync-prompt.md` + `ai-sync-prompt.md`（看板「同步」一次生成，弹窗可复制）
 - 技能根目录：本 `SKILL.md` 所在目录（记为 `<skill>`）
 - 技能脚本：`<skill>/scripts/serve.mjs`、`render-board.mjs`、`lib/*`
 - 模板：`<skill>/assets/board.template.html`
@@ -77,7 +76,7 @@ metadata:
 - 不发明 docs
 - 多个信号冲突时取更「靠后」的生命周期（done > doing > planned > proposed > idea）；`cancelled`/`deferred` 仅在文档显式声明时覆盖
 
-也可用看板 **「同步仓库」** 做启发式 align + 孤儿文档入库。
+也可用看板 **「同步」** 做启发式 align + 孤儿文档入库。
 
 ### 4. suggest-from(nodeId) — Mode B
 
@@ -111,28 +110,22 @@ npx --yes github:Heliostest/vibe-planning serve "<projectRoot>" --open
 - 看板：默认 `http://localhost:7465/`；端口占用时自动 +1（最多尝试 30 次）
 - 启动时打印实际 URL；`--open` 跨平台打开浏览器
 - 零 npm 依赖；YAML 助手在 `scripts/lib/yaml-mini.mjs`
-- API：`GET /api/tree`、`GET/POST /api/layout`、`GET /api/health`、`GET /api/events`（SSE `reload`）、`POST /api/sync`、`POST /api/ai-sync-prompt`、`POST /api/promote-ghost`、`GET /api/sync-prompt`
-- 看板加载后拉 `/api/tree` + `/api/layout` 重绘；拖拽位置写入 `layout.json`；SSE + 每 2s 轮询
+- API：`GET /api/tree`、`GET/POST /api/layout`、`POST /api/relayout`、`GET /api/health`、`GET /api/events`（SSE `reload`）、`POST /api/sync`、`POST /api/promote-ghost`、`GET /api/sync-prompt`
+- 看板加载后拉 `/api/tree` + `/api/layout` 重绘；拖拽位置写入 `layout.json`；「重排」写整表 layout；SSE + 每 2s 轮询
 
 解析 `<skill>`：Cursor/Claude 下通常为 `~/.cursor/skills/vibe-planning` 或项目内 `.cursor/skills/vibe-planning`；也可用 `node <repo>/bin/vibe-planning.mjs skill-path`。
 
 ### 6. sync（看板按钮或脚本）
 
-看板标题栏 **「同步仓库」** → `POST /api/sync` → `runSync(projectRoot)`：
+看板标题栏 **「同步」** → `POST /api/sync` → `runSync` + `buildAiSyncPrompt`：
 
 1. 扫描规划文档（`docs/**/*.md`，优先 specs/plans；跳过 `node_modules`/`.git`/`dist`/`board.html`）
 2. `git log --oneline -n 80`（及近期 name-only）
-3. 按 align 规则更新已有节点 status；清晰孤儿挂项目根，按文档日期（实现顺序）串联 `dependsOn`（无 inbox）；模糊孤儿只写入提示
-4. 写 `docs/vibe-planning/sync-prompt.md`（含中文可贴提示词）
+3. 按 align 规则更新已有节点 status；清晰孤儿挂项目根，按文档日期串联 `dependsOn`；模糊孤儿只写入提示
+4. 写 `sync-prompt.md` + `ai-sync-prompt.md`；响应带 `prompt`，看板弹窗可复制
 5. 保存 YAML；SSE 通知看板 reload
 
-### 6b. AI sync prompt（只读扫描 → 可贴提示词）
-
-看板 **「AI 提示词」** → `POST /api/ai-sync-prompt` → `buildAiSyncPrompt`：
-
-1. 只读扫描 docs + git + 当前 `plan-tree.yaml` 全文（**不**自动改 YAML）
-2. 生成详细中文提示词（含 English skill 调用行、孤儿列表、git log、回复检查清单）
-3. 写入 `docs/vibe-planning/ai-sync-prompt.md`；弹窗展示，可一键复制到 LLM 对话
+看板 **「重排」** → `POST /api/relayout`：按 parent 树 + dependsOn 顺序自动写 `layout.json`。
 
 ### 7. render（可选静态导出）
 
@@ -147,10 +140,9 @@ node "<skill>/scripts/render-board.mjs" "<project>/docs/vibe-planning/plan-tree.
 - 主视图：vis-network 依赖图（barnesHut 稳定后冻结）；`parent` 实线、`dependsOn` 淡虚线
 - 节点颜色按 status（见 reference 色板）
 - **节点悬停/选中**：上方浮动工具栏「启发 / Inspire」与「推进 / Advance」；ghost 上「推进→构想」经 `/api/promote-ghost` 升为 `status: idea` 正式节点；普通节点复制 `vibe-planning:inspire-from` / `vibe-planning:advance-from` 提示词；工具栏随 pan/zoom 跟随
-- 标题栏：**「同步仓库」**、**「AI 提示词」**；侧栏：**「从此处建议」**（复用 inspire 提示词）
+- 标题栏：**「同步」**、**「重排」**；侧栏：**「从此处建议」**（复用 inspire 提示词）
 - 设置弹窗可选界面语言（`zh-CN`/`en`，`localStorage`：`vibe-planning.locale`）；节点内容语言不变
-- 同步后 meta/toast 显示摘要；可打开 sync-prompt
-- 「AI 提示词」弹窗可复制完整 LLM 提示，用于人工/AI 整理 plan-tree
+- 同步后弹窗展示可贴 LLM 提示词；meta/toast 显示摘要
 
 ## 状态色板（速查）
 

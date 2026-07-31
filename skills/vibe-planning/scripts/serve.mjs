@@ -12,7 +12,8 @@ import { spawn } from 'node:child_process';
 import { parseYaml } from './lib/yaml-mini.mjs';
 import { runSync, buildAiSyncPrompt } from './lib/sync-repo.mjs';
 import { promoteGhost } from './lib/promote-ghost.mjs';
-import { readLayout, mergeLayout } from './lib/layout-store.mjs';
+import { readLayout, mergeLayout, writeLayout } from './lib/layout-store.mjs';
+import { autoLayout } from './lib/auto-layout.mjs';
 import { readDoneOrder, mergeDoneOrder } from './lib/done-order-store.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,7 +38,7 @@ function readVersion() {
       }
     } catch { /* try next */ }
   }
-  return '1.1.1';
+  return '1.1.2';
 }
 
 const VERSION = readVersion();
@@ -190,11 +191,13 @@ function main() {
 
       if (req.method === 'POST' && pathname === '/api/sync') {
         const result = runSync(projectRoot);
+        const ai = buildAiSyncPrompt(projectRoot, { writeFile: true });
         broadcastReload();
         return sendJson(res, result.ok ? 200 : 500, {
           ok: result.ok,
           updated: result.updated,
-          promptPath: result.promptPath,
+          promptPath: ai.promptPath || result.promptPath,
+          prompt: ai.prompt || '',
           summary: result.summary,
         });
       }
@@ -206,6 +209,17 @@ function main() {
           prompt: result.prompt,
           promptPath: result.promptPath,
           summary: result.summary,
+        });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/relayout') {
+        const tree = loadTree(projectRoot);
+        const positions = autoLayout(tree.nodes, tree.ghosts);
+        writeLayout(projectRoot, positions);
+        broadcastReload();
+        return sendJson(res, 200, {
+          ok: true,
+          count: Object.keys(positions).length,
         });
       }
 

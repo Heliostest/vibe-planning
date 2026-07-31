@@ -103,7 +103,8 @@ Docs contradict YAML → update YAML to match docs. Never invent doc paths.
 | `/api/tree` | GET | plan-tree JSON |
 | `/api/health` | GET | `{ ok, projectRoot }` |
 | `/api/events` | GET | SSE; `reload` when yaml changes |
-| `/api/sync` | POST | run sync; `{ ok, updated, promptPath, summary }` |
+| `/api/sync` | POST | run sync + AI prompt; `{ ok, updated, prompt, promptPath, summary }` |
+| `/api/relayout` | POST | auto-layout by parent/deps; writes `layout.json` |
 | `/api/sync-prompt` | GET | last sync-prompt.md text |
 
 Shared YAML: `scripts/lib/yaml-mini.mjs`  
@@ -122,7 +123,7 @@ Sync logic: `scripts/lib/sync-repo.mjs` → `runSync(projectRoot)`
 
 - vis-network hierarchical, direction `UD`, `physics: false`
 - `sortMethod: 'directed'`; larger `nodeSpacing` / `levelSeparation`
-- Header: 「同步仓库」; aside: 「从此处建议」
+- Header: 「同步」「重排」; aside: 「从此处建议」
 
 ## Static render (optional)
 
