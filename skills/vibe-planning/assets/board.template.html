@@ -187,13 +187,24 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   #toast {
-    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-    background: rgba(17, 24, 39, 0.95); border: 1px solid var(--border); padding: 10px 16px;
-    border-radius: 18px; font-size: 13px; opacity: 0; pointer-events: none;
-    transition: opacity .2s; max-width: 90vw; z-index: 20;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 18px rgba(56,189,248,0.12);
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translate(-50%, 12px);
+    background: #1f2937; color: #f9fafb;
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 12px 18px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; line-height: 1.35;
+    opacity: 0; pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease;
+    max-width: min(420px, 92vw); z-index: 80;
+    box-shadow: 0 14px 36px rgba(0,0,0,0.45);
   }
-  #toast.show { opacity: 1; }
+  html[data-theme="light"] #toast {
+    background: #111827; color: #f9fafb;
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
   #settingsModal, #promptModal {
     position: fixed; inset: 0; z-index: 40; display: none;
     align-items: center; justify-content: center;
@@ -482,8 +493,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'toolbar.advanceGhost.purpose': '把幽灵节点升为正式构想节点，写入计划树。',
       'toolbar.advanceGhost.how': '点击后调用晋升接口：去掉 ghost- 前缀，以 status: idea 写入 nodes。',
       'toast.suggestCopied': '已复制「从此处建议」请求',
-      'toast.inspireCopied': '已复制「启发」提示词',
-      'toast.advanceCopied': '已复制「推进」提示词',
+      'toast.inspireCopied': '已复制「启发」提示词到剪贴板',
+      'toast.advanceCopied': '已复制「推进」提示词到剪贴板',
       'toast.promotedIdea': '已推进为构想节点',
       'toast.copyPrompt': '复制以下内容:',
       'toast.syncing': '正在同步…',
@@ -570,8 +581,8 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
       'toolbar.advanceGhost.purpose': 'Promote a ghost into a real idea node in the plan tree.',
       'toolbar.advanceGhost.how': 'Click to promote: strip the ghost- prefix and insert status: idea into nodes.',
       'toast.suggestCopied': 'Copied suggest-from request',
-      'toast.inspireCopied': 'Copied inspire prompt',
-      'toast.advanceCopied': 'Copied advance prompt',
+      'toast.inspireCopied': 'Inspire prompt copied to clipboard',
+      'toast.advanceCopied': 'Advance prompt copied to clipboard',
       'toast.promotedIdea': 'Promoted to idea node',
       'toast.copyPrompt': 'Copy the following:',
       'toast.syncing': 'Syncing…',
@@ -810,11 +821,17 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
     };
   }
 
+  var toastTimer = null;
   function toast(msg) {
     const el = document.getElementById('toast');
+    if (!el) return;
     el.textContent = msg;
     el.classList.add('show');
-    setTimeout(function () { el.classList.remove('show'); }, 2800);
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      el.classList.remove('show');
+      toastTimer = null;
+    }, 2600);
   }
 
   function copyText(text, toastKey) {
@@ -1480,6 +1497,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
 
   btnInspire.addEventListener('click', function (e) {
     e.stopPropagation();
+    hideToolbarTip();
     var id = toolbarNodeId || activeToolbarId();
     if (!id || !nodesDS) return;
     var node = nodesDS.get(id);
@@ -1489,6 +1507,7 @@ window.PLAN_TREE = /*__PLAN_TREE__*/null;
 
   btnAdvance.addEventListener('click', async function (e) {
     e.stopPropagation();
+    hideToolbarTip();
     var id = toolbarNodeId || activeToolbarId();
     if (!id || !nodesDS) return;
     var node = nodesDS.get(id);
